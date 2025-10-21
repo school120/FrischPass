@@ -29,7 +29,7 @@
     <div id="time">Time:&nbsp;<span id="clock"></span></div>
   </div>
 
-  <form id="checkin" action="https://checkin.veracross.com/frisch/kiosk/soutoffice" method="post">
+  <form id="checkin" action="https://checkin.veracross.com/frisch/kiosk/soutoffice" method="post" target="bg_iframe">
     <!-- Hidden fields you may map if your endpoint expects them -->
     <input type="hidden" name="kiosk_type" value="5" />
     <input type="hidden" name="check_in_method" value="3" />
@@ -55,6 +55,9 @@
   </div>
 </div>
 
+<!-- Hidden iframe that receives background form submissions -->
+<iframe name="bg_iframe" id="bg_iframe" style="position:absolute;width:1px;height:1px;left:-9999px;top:-9999px;border:0"></iframe>
+
 <script>
   // Simple clock
   const clock=()=>{document.getElementById('clock').textContent=new Date().toLocaleString()};
@@ -69,7 +72,9 @@
       const res = await fetch('roster.csv', {cache:'no-store'});
       if(!res.ok) throw new Error('No roster.csv found');
       const text = await res.text();
-      const lines = text.split(/\r?\n/).filter(Boolean);
+      const lines = text.split(/
+?
+/).filter(Boolean);
       const header = lines.shift().split(',').map(h=>h.trim().toLowerCase());
       const idxLegacy = header.indexOf('legacy student id');
       const idxName = header.indexOf('full name');
@@ -96,8 +101,42 @@
     document.getElementById('checkin_response').textContent = hit? `${hit.name} • ${hit.grade}` : '';
   });
 
-  // On submit: the browser navigates to Veracross and shows their notice.
-  // (No AJAX; keeps it simple and ensures their success page appears.)
+    // Background submit: post to hidden iframe, show a generic success/failure notice when iframe loads.
+  const form = document.getElementById('checkin');
+  const resp = document.getElementById('checkin_response');
+  const bg = document.getElementById('bg_iframe');
+
+  // Simple label print (opens system dialog). For silent printing, run Chrome with --kiosk-printing and set default printer.
+  function printPass(){
+    // Use the minimal separate print document to avoid full page print
+    const id = idInput.value.trim();
+    const who = (roster.get(id)||{}).name || '';
+    const grade = (roster.get(id)||{}).grade || '';
+    const w = window.open('', 'label', 'width=400,height=260');
+    const now = new Date().toLocaleString();
+    w.document.write(`<!doctype html><html><head><meta charset=utf-8><title>Pass</title>
+      <style>@page{size:3.94in 2.44in;margin:0.15in}body{margin:0;font-family:Arial,sans-serif} .lab{width:3.64in;height:2.14in;border:2px solid #000;padding:.08in .12in} h1{margin:0 0 4px;font-size:18px} .row{display:flex;justify-content:space-between;font-size:12px} .big{font-size:16px;font-weight:bold;margin-top:6px}</style>
+      </head><body><div class=lab>
+      <h1>FRISCHPASS – EARLY DISMISSAL</h1>
+      <div class=row><div><b>${who||'Student'}</b> • ${grade||''}</div><div>ID: ${id||''}</div></div>
+      <div class=big>Signed out: ${now}</div>
+      </div></body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+    w.close();
+  }
+
+  bg.addEventListener('load', ()=>{
+    // We cannot read cross-origin content; treat load as "submitted".
+    resp.style.color = '#9fe0ad';
+    resp.textContent = 'Submitted to Veracross.';
+  });
+
+  form.addEventListener('submit', ()=>{
+    // After we submit, immediately print the pass
+    setTimeout(printPass, 10);
+  });
 
   // Focus field for scanners
   window.addEventListener('load', ()=> idInput.focus());
