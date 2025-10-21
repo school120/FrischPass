@@ -24,32 +24,33 @@ input[type=text]{
 </style>
 </head>
 <body>
+
 <h1>Sign Out Main Office</h1>
 <div id="clock"></div>
 
-<input type="text" id="legacy_id" placeholder="Scan Legacy Student ID" autocomplete="off" autofocus />
-<div id="sign_in_button"><input type="button" value="Sign Out" onclick="submitForm()" /></div>
+<input type="text" id="legacy_id" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
+<div id="sign_in_button"><input type="button" value="Sign Out" onclick="handleScan()" /></div>
 <div id="response"></div>
 
 <script>
-const kioskURL="https://checkin.veracross.com/frisch/checkin/log";
-const roster=new Map();
+// ----- CLOCK -----
 setInterval(()=>document.getElementById("clock").textContent=new Date().toLocaleString(),1000);
 
-// load roster.csv
+// ----- LOAD ROSTER -----
+const roster=new Map();
 async function loadRoster(){
   try{
     const res=await fetch("roster.csv",{cache:"no-store"});
     if(!res.ok)throw 0;
     const text=await res.text();
-    const lines=text.split(/\\r?\\n/).filter(Boolean);
-    const header=lines.shift().split(/,|\\t/).map(h=>h.trim().toLowerCase());
+    const lines=text.split(/\r?\n/).filter(Boolean);
+    const header=lines.shift().split(/,|\t/).map(h=>h.trim().toLowerCase());
     const iId=header.indexOf("legacy student id");
     const iName=header.indexOf("full name");
     const iGrade=header.indexOf("current grade");
     if(iId===-1||iName===-1)throw 0;
     lines.forEach(l=>{
-      const c=l.split(/,|\\t/);
+      const c=l.split(/,|\t/);
       const id=(c[iId]||"").trim();
       const name=(c[iName]||"").trim();
       const grade=(c[iGrade]||"").trim();
@@ -62,57 +63,45 @@ async function loadRoster(){
 }
 loadRoster();
 
-function submitForm(){
+// ----- HANDLE SCAN -----
+function handleScan(){
   const id=document.getElementById("legacy_id").value.trim();
   const resp=document.getElementById("response");
   if(!id){resp.style.color="#ffb3a1";resp.textContent="Scan or enter an ID.";return;}
   const info=roster.get(id)||{name:"Unknown Student",grade:""};
   const name=info.name, grade=info.grade;
-
-  // hidden popup to Veracross
-  const w=window.open("", "bgSubmit","width=300,height=200,left=-10000,top=-10000");
-  if(!w){resp.style.color="#ffb3a1";resp.textContent="Popup blocked! Allow popups.";return;}
-  const html=`<form id='f' method='POST' action='${kioskURL}'>
-      <input type='hidden' name='legacy_id' value='${id}'>
-      <input type='hidden' name='kiosk_type' value='5'>
-      <input type='hidden' name='check_in_method' value='3'>
-      <input type='hidden' name='kiosk' value='9'>
-    </form>
-    <script>document.getElementById('f').submit();setTimeout(()=>window.close(),1200);<\/script>`;
-  w.document.write(html);w.document.close();
-
-  resp.style.color="#cfd8ff";
-  resp.textContent=`Submitting ${name} (${id})…`;
-  setTimeout(()=>{
-    resp.style.color="#9fe0ad";
-    resp.textContent=`Submitted to Veracross • ${name}`;
-    printPass(id,name,grade);
-  },1500);
+  resp.style.color="#9fe0ad";
+  resp.textContent=`Signed out: ${name} (${grade})`;
+  printPass(id,name,grade);
 }
 
+// ----- PRINT PASS -----
 function printPass(id,name,grade){
   const now=new Date().toLocaleString();
-  const p=window.open("","label","width=400,height=260,left=-9999,top=-9999");
-  p.document.write(`<!doctype html><html><head><meta charset=utf-8><title>Pass</title>
-  <style>@page{size:3.94in 2.44in;margin:0.15in}
-  body{margin:0;font-family:Arial,sans-serif}
-  .lab{width:3.64in;height:2.14in;border:2px solid #000;padding:.08in .12in}
-  h1{margin:0 0 4px;font-size:18px}
-  .big{font-size:16px;font-weight:bold;margin-top:6px}
-  </style></head><body>
-  <div class='lab'>
-    <h1>FRISCHPASS – EARLY DISMISSAL</h1>
-    <div><b>${name}</b></div>
-    <div>Grade: ${grade||""}</div>
-    <div>ID: ${id}</div>
-    <div class='big'>Signed out: ${now}</div>
-  </div></body></html>`);
-  p.document.close();p.focus();p.print();p.close();
-  document.getElementById("legacy_id").value="";document.getElementById("legacy_id").focus();
+  const w=window.open("","printpass","width=400,height=260,left=-9999,top=-9999");
+  w.document.write(`<!doctype html><html><head><meta charset=utf-8><title>FrischPass</title>
+    <style>@page{size:3.94in 2.44in;margin:0.15in}
+    body{margin:0;font-family:Arial,sans-serif}
+    .lab{width:3.64in;height:2.14in;border:2px solid #000;padding:.08in .12in}
+    h1{margin:0 0 4px;font-size:18px}
+    .big{font-size:16px;font-weight:bold;margin-top:6px}
+    </style></head><body>
+    <div class='lab'>
+      <h1>FRISCHPASS – EARLY DISMISSAL</h1>
+      <div><b>${name}</b></div>
+      <div>Grade: ${grade||""}</div>
+      <div>ID: ${id}</div>
+      <div class='big'>Signed out: ${now}</div>
+    </div>
+    <script>window.print();setTimeout(()=>window.close(),500);<\/script>
+  </body></html>`);
+  w.document.close();
+  document.getElementById("legacy_id").value="";
+  document.getElementById("legacy_id").focus();
 }
 
 document.getElementById("legacy_id").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){e.preventDefault();submitForm();}
+  if(e.key==="Enter"){e.preventDefault();handleScan();}
 });
 </script>
 </body>
