@@ -1,82 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-  <title>Veracross Kiosk – Frisch</title>
-  <style>
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff;text-align:center;padding:40px}
-    #clock{font-size:18px;color:#cfd8ff;margin-bottom:20px}
-    input[type=text]{width:260px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px;text-align:center}
-    #sign_in_button input[type=button]{margin-top:20px;padding:14px 22px;border:none;border-radius:10px;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
-    #response{margin-top:20px;font-size:16px;color:#9fe0ad}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Frisch Kiosk</title>
+<style>
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff;text-align:center;padding:40px}
+#clock{font-size:18px;color:#cfd8ff;margin-bottom:20px}
+input[type=text]{width:280px;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px;text-align:center}
+#sign_in_button input[type=button]{margin-top:20px;padding:14px 22px;border:none;border-radius:10px;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
+#response{margin-top:20px;font-size:16px;color:#9fe0ad}
+</style>
 </head>
 <body>
-
 <h1>Sign Out Main Office</h1>
 <div id="clock"></div>
-
-<input type="text" id="legacy_id" placeholder="School Student ID" autocomplete="off" autofocus />
-<div id="sign_in_button"><input type="button" value="Sign Out" onclick="submitForm()" /></div>
+<input type="text" id="legacy_id" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
+<div id="sign_in_button"><input type="button" value="Sign Out" onclick="sendToHelper()" /></div>
 <div id="response"></div>
 
 <script>
-  // live clock
+let helperWin;
+function openHelper(){
+  helperWin = window.open('veracross-helper.html','veraHelper','width=800,height=600,left=-9999,top=-9999');
+  if(!helperWin){document.getElementById('response').textContent='⚠️ Popup blocked. Allow popups for this site.';}
+}
+window.addEventListener('load',()=>{
+  openHelper();
   setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleString(),1000);
-
-  const kioskURL = "https://checkin.veracross.com/frisch/checkin/log";
-
-  function submitForm(){
-    const id = document.getElementById('legacy_id').value.trim();
-    const resp = document.getElementById('response');
-    if(!id){ resp.style.color='#ffb3a1'; resp.textContent='Scan or enter ID'; return; }
-
-    // Open tiny popup off-screen
-    const w = window.open('', 'bgSubmit', 'width=300,height=200,left=-10000,top=-10000');
-    if(!w){ resp.style.color='#ffb3a1'; resp.textContent='Popup blocked! Allow popups.'; return; }
-
-    // Build a simple HTML doc that posts the legacy_id to Veracross and closes itself
-    const html = `
-      <form id='f' method='POST' action='${kioskURL}'>
-        <input type='hidden' name='legacy_id' value='${id}'>
-        <input type='hidden' name='kiosk_type' value='5'>
-        <input type='hidden' name='check_in_method' value='3'>
-        <input type='hidden' name='kiosk' value='9'>
-      </form>
-      <script>document.getElementById('f').submit(); setTimeout(()=>window.close(),1500);<\/script>
-    `;
-    w.document.write(html);
-    w.document.close();
-
-    resp.style.color='#cfd8ff';
-    resp.textContent='Submitting to Veracross…';
-    setTimeout(()=>{ resp.style.color='#9fe0ad'; resp.textContent='Submitted to Veracross.'; printPass(id); },1500);
+  document.getElementById('legacy_id').focus();
+});
+function sendToHelper(){
+  const id=document.getElementById('legacy_id').value.trim();
+  const resp=document.getElementById('response');
+  if(!id){resp.style.color='#ffb3a1';resp.textContent='Scan or enter an ID';return;}
+  if(!helperWin || helperWin.closed){openHelper();}
+  resp.style.color='#cfd8ff';resp.textContent=`Submitting ID ${id}…`;
+  helperWin.postMessage({legacy_id:id},'*');
+}
+window.addEventListener('message',e=>{
+  if(e.data==='submitted'){
+    const id=document.getElementById('legacy_id').value.trim();
+    const now=new Date().toLocaleString();
+    document.getElementById('response').style.color='#9fe0ad';
+    document.getElementById('response').textContent=`Submitted to Veracross • ${now}`;
+    printPass(id);
   }
-
-  function printPass(id){
-    const now = new Date().toLocaleString();
-    const p = window.open('', 'label', 'width=400,height=260');
-    p.document.write(`<!doctype html><html><head><meta charset=utf-8><title>Pass</title>
-      <style>@page{size:3.94in 2.44in;margin:0.15in}
-      body{margin:0;font-family:Arial,sans-serif}
-      .lab{width:3.64in;height:2.14in;border:2px solid #000;padding:.08in .12in}
-      h1{margin:0 0 4px;font-size:18px}
-      .big{font-size:16px;font-weight:bold;margin-top:6px}
-      </style></head>
-      <body><div class='lab'>
-      <h1>FRISCHPASS – EARLY DISMISSAL</h1>
-      <div>ID: ${id}</div>
-      <div class='big'>Signed out: ${now}</div>
-      </div></body></html>`);
-    p.document.close(); p.focus(); p.print(); p.close();
-    document.getElementById('legacy_id').value=''; document.getElementById('legacy_id').focus();
-  }
-
-  document.getElementById('legacy_id').addEventListener('keydown',e=>{
-    if(e.key==='Enter'){ e.preventDefault(); submitForm(); }
-  });
+});
+function printPass(id){
+  const now=new Date().toLocaleString();
+  const p=window.open('','label','width=400,height=260');
+  p.document.write(`<!doctype html><html><head><meta charset=utf-8><title>Pass</title>
+  <style>@page{size:3.94in 2.44in;margin:0.15in}
+  body{margin:0;font-family:Arial,sans-serif}
+  .lab{width:3.64in;height:2.14in;border:2px solid #000;padding:.08in .12in}
+  h1{margin:0 0 4px;font-size:18px}
+  .big{font-size:16px;font-weight:bold;margin-top:6px}
+  </style></head><body>
+  <div class='lab'><h1>FRISCHPASS – EARLY DISMISSAL</h1>
+  <div>ID: ${id}</div><div class='big'>Signed out: ${now}</div></div></body></html>`);
+  p.document.close();p.focus();p.print();p.close();
+  document.getElementById('legacy_id').value='';document.getElementById('legacy_id').focus();
+}
+document.getElementById('legacy_id').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();sendToHelper();}
+});
 </script>
-
 </body>
 </html>
