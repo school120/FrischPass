@@ -127,15 +127,40 @@
     w.close();
   }
 
+    let submittedOnce = false;
   bg.addEventListener('load', ()=>{
-    // We cannot read cross-origin content; treat load as "submitted".
+    submittedOnce = true;
     resp.style.color = '#9fe0ad';
     resp.textContent = 'Submitted to Veracross.';
   });
 
-  form.addEventListener('submit', ()=>{
-    // After we submit, immediately print the pass
+    function fallbackPopupSubmit(){
+    try{
+      const id = idInput.value.trim();
+      const w = window.open('', 'bgSubmit', 'width=200,height=120,left=-10000,top=-10000');
+      if(!w){ resp.style.color = '#ffb3a1'; resp.textContent = 'Popup blocked. Allow popups for background submit.'; return; }
+      // Build a minimal document that auto-submits to Veracross as top-level (not iframe)
+      const doc = `<!doctype html><html><body>
+        <form id=F method=post action="https://checkin.veracross.com/frisch/kiosk/soutoffice">
+          <input type=hidden name=legacy_student_id value="${id}">
+        </form>
+        <script>F.submit(); setTimeout(()=>window.close(), 1200);<\/script>
+      </body></html>`;
+      w.document.write(doc); w.document.close();
+      resp.style.color = '#cfd8ff';
+      resp.textContent = 'Submitting…';
+    }catch(e){
+      resp.style.color = '#ffb3a1';
+      resp.textContent = 'Background submit failed.';
+    }
+  }
+
+  form.addEventListener('submit', (ev)=>{
+    // After submit (iframe target), start a timer; if iframe load doesn't fire, try popup fallback
+    setTimeout(()=>{ if(!submittedOnce){ fallbackPopupSubmit(); } }, 1500);
+    // Print almost immediately
     setTimeout(printPass, 10);
+  });
   });
 
   // Focus field for scanners
