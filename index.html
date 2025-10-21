@@ -5,45 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Frisch Kiosk – Early Dismissal</title>
 <style>
-body{
-  margin:0;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:#0b1020;
-  color:#fff;
-  text-align:center;
-  padding:40px;
-}
-#clock{
-  font-size:18px;
-  color:#cfd8ff;
-  margin-bottom:20px;
-}
-input[type=text]{
-  width:280px;
-  padding:14px;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.18);
-  background:#0f1530;
-  color:#fff;
-  font-size:18px;
-  text-align:center;
-}
-#sign_in_button input[type=button]{
-  margin-top:20px;
-  padding:14px 22px;
-  border:none;
-  border-radius:10px;
-  background:#91011c;
-  color:#fff;
-  font-weight:700;
-  font-size:18px;
-  cursor:pointer;
-}
-#response{
-  margin-top:20px;
-  font-size:16px;
-  color:#9fe0ad;
-}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff;text-align:center;padding:40px}
+#clock{font-size:18px;color:#cfd8ff;margin-bottom:20px}
+input[type=text]{width:280px;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px;text-align:center}
+#sign_in_button input[type=button]{margin-top:20px;padding:14px 22px;border:none;border-radius:10px;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
+#response{margin-top:20px;font-size:16px;color:#9fe0ad}
+.small{font-size:13px;color:#9fb0d0;margin-top:8px;line-height:1.3}
+a.bookmark{color:#9fe0ad;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -55,66 +23,96 @@ input[type=text]{
 <div id="sign_in_button"><input type="button" value="Sign Out" onclick="handleScan()" /></div>
 <div id="response"></div>
 
+<div class="small">
+  1) Open the Veracross tab (button below).<br/>
+  2) In that tab, click your <b>Install Veracross Listener</b> bookmarklet once.<br/>
+  3) Come back here and scan IDs; they will submit in the background and print.
+  <div style="margin-top:8px">
+    <button onclick="openVera()">Open Veracross tab</button>
+  </div>
+  <div style="margin-top:6px">
+    Bookmarklet URL (create a bookmark with this as the URL):<br/>
+    <code>javascript:(function(){var s=document.createElement('script');s.src='https://school120.github.io/FrischPass/inject.js?'+Date.now();document.body.appendChild(s);}());</code>
+  </div>
+</div>
+
 <!-- PapaParse for robust CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
+const VC_ORIGIN = "https://checkin.veracross.com";
+const VC_KIOSK_URL = "https://checkin.veracross.com/frisch/kiosk/soutoffice";
+let vcWin = null; // handle to the Veracross tab/window
+
 const roster = new Map();
 
-// Clock
-setInterval(() => {
-  document.getElementById("clock").textContent = new Date().toLocaleString();
-}, 1000);
+// live clock
+setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleString(); }, 1000);
 
-// Load roster.csv
+// load roster.csv (headers: Person ID, Full Name, Legacy Student ID, Current Grade)
 async function loadRoster(){
   try{
-    const res = await fetch("roster.csv", {cache:"no-store"});
-    if(!res.ok) throw new Error();
+    const res = await fetch("roster.csv",{cache:"no-store"});
+    if(!res.ok) throw 0;
     const text = await res.text();
     const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
     roster.clear();
-    parsed.data.forEach(row => {
-      const id = (row["Legacy Student ID"] || "").trim();
-      const name = (row["Full Name"] || "").trim();
-      const grade = (row["Current Grade"] || "").trim();
-      if(id) roster.set(id, {name, grade});
+    parsed.data.forEach(r=>{
+      const id = (r["Legacy Student ID"]||"").trim();
+      const name = (r["Full Name"]||"").trim();
+      const grade = (r["Current Grade"]||"").trim();
+      if(id) roster.set(id,{name,grade});
     });
-    document.getElementById("response").textContent =
-      `Roster loaded: ${roster.size} students.`;
-  } catch(e){
-    document.getElementById("response").textContent =
-      "⚠️ roster.csv not found or invalid format.";
+    document.getElementById("response").textContent = `Roster loaded: ${roster.size} students.`;
+  }catch{
+    document.getElementById("response").textContent = "⚠️ roster.csv not found or invalid.";
   }
 }
 loadRoster();
 
-// Handle scan
-function handleScan(){
-  const idField = document.getElementById("legacy_id");
-  const id = idField.value.trim();
-  const resp = document.getElementById("response");
+function openVera(){
+  try{
+    vcWin = window.open(VC_KIOSK_URL, "veracross_tab");
+  }catch(e){}
+}
 
-  if(!id){
-    resp.style.color="#ffb3a1";
-    resp.textContent="Scan or enter an ID.";
-    return;
+// send ID to the Veracross tab (listener injected by bookmarklet will receive it)
+function postToVera(id){
+  try{
+    if (!vcWin || vcWin.closed) openVera();
+    setTimeout(()=>{ // small delay if we just opened the tab
+      vcWin.postMessage({ type:"frisch_legacy_id", id }, VC_ORIGIN);
+    }, 600);
+  }catch(e){
+    // If popups blocked, user needs to open Veracross tab manually and click the bookmarklet there
   }
+}
 
+// handle scan/enter
+function handleScan(){
+  const input = document.getElementById("legacy_id");
+  const id = input.value.trim();
+  const resp = document.getElementById("response");
+  if(!id){ resp.style.color="#ffb3a1"; resp.textContent="Scan or enter an ID."; return; }
+
+  // lookup name/grade for printing only (no ID on label)
   const info = roster.get(id) || {name:"Unknown Student", grade:""};
   const {name, grade} = info;
 
-  resp.style.color="#9fe0ad";
-  resp.textContent = `Signed out: ${name} (${grade})`;
+  // send to Veracross tab
+  postToVera(id);
 
+  // show confirmation + print
+  resp.style.color="#9fe0ad";
+  resp.textContent=`Signed out: ${name} (${grade})`;
   printPass(name, grade);
 
-  // Clear input immediately for next scan
-  idField.value = "";
-  idField.focus();
+  // clear field immediately
+  input.value = "";
+  input.focus();
 }
 
-// Print label (no ID shown)
+// print label (no ID shown)
 function printPass(name, grade){
   const now = new Date().toLocaleString();
   const w = window.open("", "printpass", "width=400,height=260,left=-9999,top=-9999");
@@ -123,12 +121,7 @@ function printPass(name, grade){
     <style>
       @page { size:3.94in 2.44in; margin:0.15in }
       body { margin:0; font-family:Arial,sans-serif }
-      .lab {
-        width:3.64in;
-        height:2.14in;
-        border:2px solid #000;
-        padding:.08in .12in;
-      }
+      .lab { width:3.64in; height:2.14in; border:2px solid #000; padding:.08in .12in }
       h1 { margin:0 0 4px; font-size:18px }
       .big { font-size:16px; font-weight:bold; margin-top:6px }
     </style>
@@ -144,12 +137,13 @@ function printPass(name, grade){
   w.document.close();
 }
 
-document.getElementById("legacy_id").addEventListener("keydown", e => {
-  if(e.key === "Enter"){
-    e.preventDefault();
-    handleScan();
-  }
+// Enter submits
+document.getElementById("legacy_id").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){ e.preventDefault(); handleScan(); }
 });
+
+// Open Veracross tab on load (user may need to allow popups once)
+window.addEventListener("load", ()=>{ openVera(); document.getElementById("legacy_id").focus(); });
 </script>
 </body>
 </html>
