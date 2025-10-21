@@ -3,191 +3,191 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Frisch Kiosk – Early Dismissal</title>
+<title>FrischPass – Early Dismissal</title>
 <style>
-body{
-  margin:0;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:#0b1020; color:#fff; text-align:center; padding:40px;
-}
-#clock{font-size:18px; color:#cfd8ff; margin-bottom:20px}
-input[type=text]{
-  width:280px; padding:14px; border-radius:10px;
-  border:1px solid rgba(255,255,255,.18); background:#0f1530; color:#fff;
-  font-size:18px; text-align:center;
-}
-#sign_in_button input[type=button]{
-  margin-top:20px; padding:14px 22px; border:none; border-radius:10px;
-  background:#91011c; color:#fff; font-weight:700; font-size:18px; cursor:pointer;
-}
-#response{margin-top:20px; font-size:16px; color:#9fe0ad}
-.small{font-size:13px;color:#9fb0d0;margin-top:8px;line-height:1.3}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:#0b1020; color:#fff; text-align:center; padding:40px;
+  }
+  #clock{font-size:18px; color:#cfd8ff; margin-bottom:20px}
+  input[type=text]{
+    width:280px; padding:14px; border-radius:10px;
+    border:1px solid rgba(255,255,255,.18); background:#0f1530; color:#fff;
+    font-size:18px; text-align:center;
+  }
+  .row{margin-top:16px}
+  button{
+    padding:12px 18px; border:none; border-radius:10px; background:#91011c;
+    color:#fff; font-weight:700; font-size:16px; cursor:pointer;
+  }
+  #status{margin-top:16px; font-size:16px; color:#9fe0ad}
+  .hint{margin-top:10px; font-size:13px; color:#9fb0d0}
 </style>
 </head>
 <body>
 
-<h1>Sign Out Main Office</h1>
+<h1>Sign Out – Main Office</h1>
 <div id="clock"></div>
 
-<input type="text" id="legacy_id" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
-<div id="sign_in_button"><input type="button" value="Sign Out" onclick="handleScan()" /></div>
-<div id="response"></div>
-
-<div class="small">
-  Optional (first session only): open the Veracross tab and click your “Install Veracross Listener” bookmarklet there.
-  <div style="margin-top:8px">
-    <button onclick="openVera()">Open Veracross tab</button>
-  </div>
+<input id="legacy_id" type="text" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
+<div class="row">
+  <button id="printBtn">Print Pass</button>
+  <button id="testBtn" style="margin-left:8px;background:#3556e8">Test Print</button>
+</div>
+<div id="status"></div>
+<div class="hint">
+  Host this page and <code>roster.csv</code> + <code>logo.png</code> in the same GitHub repo.<br>
+  Chrome will print to the device’s default printer (configure in Admin Console).
 </div>
 
-<!-- PapaParse for robust CSV parsing -->
+<!-- PapaParse for reliable CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
-const VC_ORIGIN = "https://checkin.veracross.com";
-const VC_KIOSK_URL = "https://checkin.veracross.com/frisch/kiosk/soutoffice";
-let vcWin = null;
+/* ===== Config ===== */
+const LOGO_URL  = "https://school120.github.io/FrischPass/logo.png";   // watermark image
+const ROSTER_URL= "roster.csv";                                         // CSV in same repo
 
-const roster = new Map();
-const LOGO_URL = "https://school120.github.io/FrischPass/logo.png"; // watermark image (PNG/SVG/JPG)
-
-// live clock
+/* ===== Clock ===== */
 setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleString(); }, 1000);
 
-// load roster.csv (headers: Person ID, Full Name, Legacy Student ID, Current Grade)
+/* ===== Load roster.csv (headers: Person ID, Full Name, Legacy Student ID, Current Grade) ===== */
+const roster = new Map();
 async function loadRoster(){
+  const status = document.getElementById("status");
   try{
-    const res = await fetch("roster.csv",{cache:"no-store"});
-    if(!res.ok) throw 0;
+    const res = await fetch(ROSTER_URL, { cache:"no-store" });
+    if(!res.ok) throw new Error("Roster fetch failed");
     const text = await res.text();
-    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+    const parsed = Papa.parse(text, { header:true, skipEmptyLines:true });
     roster.clear();
-    parsed.data.forEach(r=>{
-      const id = (r["Legacy Student ID"]||"").trim();
-      const name = (r["Full Name"]||"").trim();
-      const grade = (r["Current Grade"]||"").trim();
-      if(id) roster.set(id,{name,grade});
+    parsed.data.forEach(row=>{
+      const id    = (row["Legacy Student ID"] || "").trim();
+      const name  = (row["Full Name"]         || "").trim();
+      const grade = (row["Current Grade"]     || "").trim();
+      if(id) roster.set(id, { name, grade });
     });
-    document.getElementById("response").textContent = `Roster loaded: ${roster.size} students.`;
-  }catch{
-    document.getElementById("response").textContent = "⚠️ roster.csv not found or invalid.";
+    status.style.color = "#9fe0ad";
+    status.textContent = `Roster loaded: ${roster.size} students.`;
+  }catch(e){
+    status.style.color = "#ffb3a1";
+    status.textContent = "⚠️ roster.csv not found or invalid.";
   }
 }
 loadRoster();
 
-// open/reuse Veracross tab
-function openVera(){
-  try{ vcWin = window.open(VC_KIOSK_URL, "veracross_tab"); }catch(e){}
+/* ===== Main flow: lookup + print ===== */
+function handlePrint(testMode=false){
+  const field  = document.getElementById("legacy_id");
+  const status = document.getElementById("status");
+  const id = field.value.trim();
+
+  let name = "Unknown Student", grade = "";
+  if(!testMode){
+    if(!id){
+      status.style.color = "#ffb3a1";
+      status.textContent = "Scan or enter an ID.";
+      return;
+    }
+    const hit = roster.get(id);
+    if(hit){ name = hit.name; grade = hit.grade; }
+  } else {
+    // Test print preview text
+    name = "Test Student";
+    grade = "Grade 9";
+  }
+
+  status.style.color = "#9fe0ad";
+  status.textContent = testMode
+    ? "Sending TEST label to printer…"
+    : `Printing pass for ${name}${grade ? " ("+grade+")" : ""}…`;
+
+  printPass({ name, grade });
+
+  // clear field for next scan
+  field.value = "";
+  field.focus();
 }
 
-// send ID to Veracross tab (bookmarklet-injected listener fills & submits)
-function postToVera(id){
-  try{
-    if (!vcWin || vcWin.closed) openVera();
-    setTimeout(()=>{ vcWin.postMessage({ type:"frisch_legacy_id", id }, VC_ORIGIN); }, 600);
-  }catch(e){}
-}
-
-// handle scan/enter
-function handleScan(){
-  const input = document.getElementById("legacy_id");
-  const id = input.value.trim();
-  const resp = document.getElementById("response");
-  if(!id){ resp.style.color="#ffb3a1"; resp.textContent="Scan or enter an ID."; return; }
-
-  const info = roster.get(id) || {name:"Unknown Student", grade:""};
-  const {name, grade} = info;
-
-  postToVera(id); // background submission on the VC tab
-  resp.style.color="#9fe0ad";
-  resp.textContent=`Signed out: ${name} (${grade})`;
-
-  printPass(name, grade); // auto-print (no ID shown)
-
-  // clear for next scan
-  input.value = "";
-  input.focus();
-}
-
-// PRINT: exact specs for Brother QL-820NWB 62×100 mm (landscape)
-function printPass(name, grade){
+/* ===== Print: exact specs for Brother QL-820NWB 62×100 mm ===== */
+function printPass({name, grade}){
   const now = new Date().toLocaleString();
-  const w = window.open("", "printpass", "width=800,height=520,left=-9999,top=-9999"); // big enough for Chromebooks
+  const w = window.open("", "printpass", "width=900,height=560,left=-9999,top=-9999");
 
   w.document.write(`<!doctype html>
-  <html><head><meta charset="utf-8"><title>FrischPass</title>
-    <style>
-      /* Exact media size: 100mm wide × 62mm tall (landscape) */
-      @page {
-        size: 100mm 62mm;
-        margin: 3.8mm; /* ≈0.15in safe margin */
+<html><head><meta charset="utf-8"><title>FrischPass</title>
+  <style>
+    /* Exact media size: 100mm wide × 62mm tall (landscape) */
+    @page {
+      size: 100mm 62mm;
+      margin: 3.8mm; /* ≈ 0.15in */
+    }
+    @media print {
+      html, body {
+        width: 100mm; height: 62mm;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
-      @media print {
-        html, body {
-          width: 100mm;
-          height: 62mm;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-          /* Avoid Chrome print headers/footers space (managed by policy in kiosk) */
-        }
-      }
-      /* Canvas area inside margins */
-      body {
-        margin: 0;
-        width: calc(100mm - 7.6mm);  /* 100 - 2*3.8 */
-        height: calc(62mm - 7.6mm);  /* 62 - 2*3.8 */
-        font-family: Arial, sans-serif;
-        position: relative;
-        overflow: hidden;
-      }
-      /* Watermark behind text */
-      .wm {
-        position: absolute;
-        inset: 0;
-        background: url(${LOGO_URL}) no-repeat center center;
-        background-size: 85% auto;        /* scale watermark */
-        opacity: 0.10;                     /* faint watermark */
-        pointer-events: none;
-      }
-      /* Content panel (text) */
-      .lab {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        border: 0.6mm solid #000;
-        box-sizing: border-box;
-        padding: 3.0mm 4.0mm;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: flex-start;
-      }
-      h1 { margin: 0 0 1.4mm; font-size: 7mm; line-height: 1.05 }
-      .line { font-size: 4.2mm; line-height: 1.25; margin-top: 0.8mm }
-      .big  { font-size: 5mm; font-weight: bold; margin-top: 2.0mm }
-    </style>
-  </head>
-  <body>
-    <div class="wm"></div>
-    <div class="lab">
-      <h1>FRISCHPASS – EARLY DISMISSAL</h1>
-      <div class="line"><b>${name}</b></div>
-      <div class="line">Grade: ${grade || ""}</div>
-      <div class="big">Signed out: ${now}</div>
-    </div>
-    <script>
-      window.print();
-      setTimeout(()=>window.close(), 300);
-    <\/script>
-  </body></html>`);
+    }
+    body{
+      margin:0;
+      width: calc(100mm - 7.6mm); /* 100 - 2*3.8 */
+      height: calc(62mm - 7.6mm); /*  62 - 2*3.8 */
+      font-family: Arial, sans-serif;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Watermark behind text */
+    .wm{
+      position:absolute; inset:0;
+      background:url(${LOGO_URL}) no-repeat center center;
+      background-size: 85% auto;
+      opacity:0.10;    /* faint */
+      pointer-events:none;
+    }
+    /* Text panel */
+    .lab{
+      position:relative;
+      width:100%; height:100%;
+      border:0.6mm solid #000;
+      box-sizing:border-box;
+      padding:3.0mm 4.0mm;
+      display:flex; flex-direction:column;
+      align-items:flex-start; justify-content:flex-start;
+    }
+    h1{ margin:0 0 1.4mm; font-size:7mm; line-height:1.05 }
+    .line{ font-size:4.2mm; line-height:1.25; margin-top:0.8mm }
+    .big{  font-size:5mm;  font-weight:bold; margin-top:2.0mm }
+  </style>
+</head>
+<body>
+  <div class="wm"></div>
+  <div class="lab">
+    <h1>FRISCHPASS – EARLY DISMISSAL</h1>
+    <div class="line"><b>${escapeHtml(name)}</b></div>
+    <div class="line">Grade: ${escapeHtml(grade || "")}</div>
+    <div class="big">Signed out: ${escapeHtml(now)}</div>
+  </div>
+  <script>window.print(); setTimeout(()=>window.close(), 300);<\/script>
+</body></html>`);
 
   w.document.close();
 }
 
+/* ===== Helpers ===== */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[c]));
+}
+
+/* ===== Wire up UI ===== */
+document.getElementById("printBtn").addEventListener("click", ()=>handlePrint(false));
+document.getElementById("testBtn").addEventListener("click",  ()=>handlePrint(true));
 document.getElementById("legacy_id").addEventListener("keydown", e=>{
-  if(e.key==="Enter"){ e.preventDefault(); handleScan(); }
+  if(e.key==="Enter"){ e.preventDefault(); handlePrint(false); }
 });
-window.addEventListener("load", ()=>{ openVera(); document.getElementById("legacy_id").focus(); });
+window.addEventListener("load", ()=> document.getElementById("legacy_id").focus());
 </script>
 </body>
 </html>
