@@ -2,430 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FrischPass • Early Dismissal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+  <title>Veracross Kiosk – Frisch</title>
   <style>
-    :root{
-      --bg:#0b1020; --panel:#121a36; --muted:#93a0b4; --text:#e7eeff; --brand:#f35a3b; --ok:#2ecc71; --warn:#f1c40f;
-      --radius:18px;
-    }
-    *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 800px at 70% -10%,#1a254d 0%, #0b1020 45%  ), linear-gradient(180deg,#0b1020, #0a0e1c 60%);color:var(--text)}
-    .wrap{max-width:1100px;margin:32px auto;padding:0 20px}
-    header{display:flex;align-items:center;gap:16px;margin:8px 0 24px}
-    header .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ff6a3c, #e64228);display:grid;place-items:center;font-weight:800}
-    header h1{font-size:clamp(22px,2.6vw,32px);margin:0}
-    .panels{display:grid;grid-template-columns:2fr 1.25fr;gap:18px}
-    @media (max-width:980px){.panels{grid-template-columns:1fr}}
-    .card{background:rgba(255,255,255,0.06);backdrop-filter:saturate(160%) blur(6px);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px}
-    .card h2{margin:0 0 10px;font-size:18px;letter-spacing:.2px}
-    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
-    label{font-size:12px;color:var(--muted);display:block;margin:4px 1px}
-    input,select,button,textarea{width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0f1530;color:var(--text);font:inherit}
-    input::placeholder{color:#6f7a8e}
-    button{cursor:pointer}
-    button.primary{background:linear-gradient(135deg,#ff6a3c,#e64228);border:none;font-weight:700}
-    button.ghost{background:transparent;border:1px dashed rgba(255,255,255,0.22)}
-    .row{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
-    .col-12{grid-column:span 12}
-    .col-8{grid-column:span 8}
-    .col-6{grid-column:span 6}
-    .col-4{grid-column:span 4}
-    .col-3{grid-column:span 3}
-    .muted{color:var(--muted)}
-    .pill{display:inline-flex;align-items:center;gap:8px;background:#0d142b;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:6px 10px;font-size:12px;color:#c7d2f6}
-    .flex{display:flex;gap:12px;align-items:center}
-    .right{margin-left:auto}
-    .pad{padding:6px 10px;border-radius:10px;background:#0d142b;border:1px solid rgba(255,255,255,.08)}
-    .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);margin:10px 0 16px}
-
-    /* PRINT LAYOUT (label) */
-    @media print{
-      body{background:#fff}
-      .wrap, header, .panels{display:none}
-      #print-area{display:block}
-    }
-    #print-area{display:none}
-
-    /* Label canvas (approx 2.4in x 3.9in  -> QL-820NWB 62mm x 100mm) */
-    @page{size: 3.94in 2.44in; margin: 0.15in}
-    .label{width:3.64in;height:2.14in;border:2px solid #000;padding:.08in .12in;font-family:Inter,Arial,sans-serif;color:#000}
-    .label h1{margin:0;font-size:20px}
-    .label .meta{display:flex;justify-content:space-between;font-size:11px;margin-top:4px}
-    .label .big{font-size:18px;font-weight:700;margin-top:6px}
-    .label .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
-    .label .foot{display:flex;justify-content:space-between;font-size:11px;margin-top:10px;border-top:1px dashed #000;padding-top:6px}
-
-    /* Small helper table */
-    table.list{width:100%;border-collapse:collapse;margin-top:8px}
-    table.list th, table.list td{border-bottom:1px solid rgba(255,255,255,.08);text-align:left;padding:8px}
-    table.list tr:hover{background:rgba(255,255,255,.05)}
-    /* KIOSK overlay */
-    .kiosk{position:fixed;inset:0;background:radial-gradient(1200px 800px at 70% -10%,#1a254d 0%, #0b1020 45%), #0b1020;display:none;z-index:9999;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px}
-    .kiosk .big{font-size:clamp(28px,5vw,56px);font-weight:800;letter-spacing:.3px;margin:8px 0 6px}
-    .kiosk .sub{font-size:clamp(14px,2.2vw,18px);color:var(--muted)}
-    .kiosk .status{margin-top:18px;padding:10px 14px;border-radius:14px;background:#0d142b;border:1px solid rgba(255,255,255,.12)}
-    .kiosk .ok{color:#8ef0b0} .kiosk .err{color:#ffb3a1}
-    .kiosk input{position:absolute;opacity:0;pointer-events:none}
-</style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff}
+    #kiosk-wrapper{max-width:680px;margin:0 auto;padding:24px}
+    #kiosk_bar{display:flex;justify-content:space-between;gap:12px;background:#121a36;border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:10px;color:#cfd8ff}
+    #location span{font-weight:700}
+    #time span{font-variant-numeric:tabular-nums}
+    h1{font-size:22px;margin:16px 0}
+    .box{background:#121a36;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:18px}
+    .input-container{display:flex;align-items:center;gap:8px}
+    input[type=text]{flex:1;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px}
+    #sign_in_button input[type=submit]{width:100%;margin-top:14px;padding:14px 16px;border-radius:10px;border:none;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
+    #kiosk-notes{color:#9fb0d0;font-size:14px;margin-top:12px}
+    #checkin_response{min-height:22px;color:#9fe0ad}
+    .muted{color:#9fb0d0}
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="logo">FP</div>
-    <div>
-      <h1>FrischPass – Early Dismissal</h1>
-      <div class="muted">Upload the student roster (CSV/XLSX), scan or type <b>Legacy Student ID</b>, then print and submit.</div>
+
+<div id="kiosk-wrapper">
+  <div id="kiosk_bar">
+    <div id="location">Location:&nbsp;<span>Sign Out Main Office</span></div>
+    <div id="time">Time:&nbsp;<span id="clock"></span></div>
+  </div>
+
+  <form id="checkin" action="https://checkin.veracross.com/frisch/kiosk/soutoffice" method="post">
+    <!-- Hidden fields you may map if your endpoint expects them -->
+    <input type="hidden" name="kiosk_type" value="5" />
+    <input type="hidden" name="check_in_method" value="3" />
+    <input type="hidden" name="kiosk" value="9" />
+
+    <div class="box">
+      <div id="checkin_response" class="muted"></div>
+      <h1>Sign Out Main Office</h1>
+      <div class="input-container">
+        <input type="text" name="legacy_student_id" id="legacy_id" placeholder="School Student ID" autocomplete="off" />
+      </div>
+      <div id="roster_status" class="muted" style="margin-top:8px"></div>
     </div>
-    <div class="right pill" id="clock">--:--</div>
-  </header>
 
-  <div class="panels">
-    <!-- Left: Workflow -->
-    <section class="card">
-      <h2>1) Load roster</h2>
-      <div class="row">
-        <div class="col-8">
-          <input type="file" id="file" accept=".csv,.xlsx,.xls" />
-        </div>
-        <div class="col-4">
-          <button class="ghost" id="btnSample">Download sample CSV</button>
-        </div>
-      </div>
-      <div class="divider"></div>
+    <div id="sign_in_button">
+      <input type="submit" value="Sign Out" />
+    </div>
+  </form>
 
-      <h2>2) Student lookup</h2>
-      <div class="row">
-        <div class="col-4">
-          <label>Legacy Student ID</label>
-          <input id="legacyId" placeholder="Scan or type ID" autocomplete="off" />
-        </div>
-        <div class="col-5">
-          <label>Student</label>
-          <input id="fullName" placeholder="Full Name" />
-        </div>
-        <div class="col-3">
-          <label>Grade</label>
-          <input id="grade" placeholder="Grade" />
-        </div>
-        <div class="col-12">
-          <small class="muted">Tip: put the cursor in the ID box and use a barcode scanner; it will auto-fill.</small>
-        </div>
-      </div>
-      <div class="divider"></div>
-
-      <h2>3) Dismissal details</h2>
-      <div class="row">
-        <div class="col-4">
-          <label>Reason</label>
-          <select id="reason">
-            <option value="Appointment">Appointment</option>
-            <option value="Illness">Illness</option>
-            <option value="Family">Family</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div class="col-4">
-          <label>Destination</label>
-          <input id="destination" placeholder="Doctor, Home, etc." />
-        </div>
-        <div class="col-4">
-          <label>Authorized by (Initials)</label>
-          <input id="initials" maxlength="8" placeholder="AB" />
-        </div>
-        <div class="col-6">
-          <label>Sign-out time</label>
-          <input id="time" type="datetime-local" />
-        </div>
-        <div class="col-6">
-          <label>Return by (optional)</label>
-          <input id="returnBy" type="time" />
-        </div>
-      </div>
-      <div class="divider"></div>
-
-      <div class="flex">
-        <button id="btnPrint" class="primary">Print FrischPass</button>
-        <button id="btnSubmit" title="Submit to Veracross" class="ghost">Submit to Veracross</button>
-        <span class="pill" id="status">Idle</span>
-        <span class="right muted">Printer: use your OS print dialog to select <b>QL‑820NWB</b>.</span>
-      </div>
-    </section>
-
-    <!-- Right: Quick list / History -->
-    <aside class=\"card\">
-      <h2>Kiosk mode (no interaction)</h2>
-      <div class=\"row\">
-        <div class=\"col-12\">
-          <label class=\"muted\"><input type=\"checkbox\" id=\"enableKiosk\"> Enable kiosk mode (auto print & submit on scan)</label>
-        </div>
-        <div class=\"col-6\">
-          <label>Default reason</label>
-          <select id=\"defReason\"><option>Appointment</option><option>Illness</option><option>Family</option><option>Other</option></select>
-        </div>
-        <div class=\"col-6\">
-          <label>Default destination</label>
-          <input id=\"defDestination\" placeholder=\"Doctor/Home/etc.\" />
-        </div>
-        <div class=\"col-6\">
-          <label>Authorized by (initials)</label>
-          <input id=\"defInitials\" maxlength=\"8\" placeholder=\"AB\" />
-        </div>
-        <div class=\"col-6\">
-          <label class=\"muted\"><input type=\"checkbox\" id=\"requireMatch\" checked> Require roster match</label>
-        </div>
-      </div>
-      <div class=\"divider\"></div>
-      <h2>Recent passes</h2>
-      <table class="list" id="recent"></table>
-      <div class="divider"></div>
-      <h2>Roster status</h2>
-      <div class="muted" id="rosterStatus">No file loaded.</div>
-    </aside>
+  <div id="kiosk-notes">
+    <span>Instructions:</span>
+    <p>Tap card / scan barcode and press Enter. This page will post directly to Veracross and show their notice.</p>
   </div>
 </div>
 
-<!-- KIOSK OVERLAY -->
-<div class=\"kiosk\" id=\"kiosk\">
-  <input id=\"scanInput\" autocomplete=\"off\" />
-  <div class=\"pill\">FrischPass – Early Dismissal</div>
-  <div class=\"big\" id=\"kioskTitle\">Ready — tap your card</div>
-  <div class=\"sub\">Make sure a roster is loaded. This screen will auto‑print and submit.</div>
-  <div class=\"status\" id=\"kioskStatus\"></div>
-</div>
-
-<!-- Hidden print markup -->
-<div id="print-area">
-  <div class="label" id="label">
-    <h1>FRISCHPASS – EARLY DISMISSAL</h1>
-    <div class="meta">
-      <div><b id="pName">Name</b> • <span id="pGrade">Grade</span></div>
-      <div>ID: <span id="pId">—</span></div>
-    </div>
-    <div class="big">Signed out: <span id="pTime">--:--</span></div>
-    <div class="grid">
-      <div>Reason: <b id="pReason">—</b></div>
-      <div>Destination: <b id="pDestination">—</b></div>
-    </div>
-    <div class="foot">
-      <div>Authorized: <b id="pInitials">—</b></div>
-      <div>Return by: <b id="pReturn">—</b></div>
-    </div>
-  </div>
-</div>
-
-<!-- SheetJS for CSV/XLSX parsing -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-(function(){
-  const $ = (s)=>document.querySelector(s);
-  const $$ = (s)=>Array.from(document.querySelectorAll(s));
-  const roster = new Map(); // key: Legacy Student ID => {name, grade, personId}
-  const recent = JSON.parse(localStorage.getItem('frischpass_recent')||'[]');
-  const status = (t)=>{$('#status').textContent=t};
+  // Simple clock
+  const clock=()=>{document.getElementById('clock').textContent=new Date().toLocaleString()};
+  clock(); setInterval(clock,1000);
 
-  // Clock
-  setInterval(()=>{$('#clock').textContent = new Date().toLocaleString()}, 1000);
-
-  // Load sample
-  $('#btnSample').addEventListener('click',()=>{
-    const csv = `Person ID,Full Name,Legacy Student ID,Current Grade\n52333,Qwickly, Test,0,None\n48015,Student, Lms,0,None\n3037,Nemetski, Darien,2973056477,Grade 8\n46268,Abish, Ethan,3250800900,Grade 9`;
-    const blob = new Blob([csv],{type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download='frisch_roster_sample.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  // Parse roster file
-  $('#file').addEventListener('change', async (ev)=>{
-    const file = ev.target.files[0]; if(!file) return;
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false});
-    roster.clear();
-    let added=0;
-    rows.forEach(r=>{
-      const legacy = String(r['Legacy Student ID']||r['Legacy ID']||r['Legacy']||'').trim();
-      const name = String(r['Full Name']||r['Name']||'').trim();
-      const grade = String(r['Current Grade']||r['Grade']||'').trim();
-      const pid = String(r['Person ID']||r['ID']||'').trim();
-      if(legacy){ roster.set(legacy, {name, grade, personId: pid}); added++; }
-    });
-    $('#rosterStatus').innerHTML = added?`Loaded <b>${added}</b> students.`:'No students found. Check your column headers.';
-    status('Roster loaded');
-  });
-
-  // Autofill on legacy ID input
-  $('#legacyId').addEventListener('input', ()=>{
-    const id = $('#legacyId').value.trim();
-    const s = roster.get(id);
-    if(s){ $('#fullName').value=s.name; $('#grade').value=s.grade; status('Student matched'); }
-  });
-
-  // Seed time now
-  const setNow=()=>{
-    const now = new Date();
-    const pad=n=>String(n).padStart(2,'0');
-    const local = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    $('#time').value = local;
-  };
-  setNow();
-
-  // Recent table
-  function renderRecent(){
-    const t = $('#recent');
-    t.innerHTML = `<tr><th>Name</th><th>Time</th><th>ID</th><th>Printed</th></tr>` +
-      recent.slice().reverse().map(r=>`<tr><td>${r.fullName}</td><td>${new Date(r.time).toLocaleString()}</td><td>${r.legacyId}</td><td>${r.printed?'Yes':'—'}</td></tr>`).join('');
-  }
-  renderRecent();
-
-  // Compose a pass object from UI
-    function readForm(){
-    return {
-      legacyId: $('#legacyId').value.trim(),
-      fullName: $('#fullName').value.trim(),
-      grade: $('#grade').value.trim(),
-      reason: $('#reason').value,
-      destination: $('#destination').value.trim() || localStorage.getItem('fp_defDestination')||'',
-      initials: $('#initials').value.trim() || localStorage.getItem('fp_defInitials')||'',
-      time: new Date($('#time').value),
-      returnBy: $('#returnBy').value
-    };
-  }
-
-  // Fill print area & call window.print
-  function doPrint(){
-    const d = readForm();
-    if(!d.legacyId || !d.fullName){ alert('Enter Legacy Student ID and Name.'); return; }
-    $('#pName').textContent = d.fullName || '—';
-    $('#pGrade').textContent = d.grade || '—';
-    $('#pId').textContent = d.legacyId || '—';
-    $('#pTime').textContent = d.time.toLocaleString();
-    $('#pReason').textContent = d.reason || '—';
-    $('#pDestination').textContent = d.destination || '—';
-    $('#pInitials').textContent = d.initials || '—';
-    $('#pReturn').textContent = d.returnBy || '—';
-    status('Opening print dialog…');
-    setTimeout(()=>window.print(), 50);
-    // save recent
-    recent.push({...d, printed:true});
-    localStorage.setItem('frischpass_recent', JSON.stringify(recent.slice(-30)));
-    renderRecent();
-  }
-
-  // Submit to Veracross via an HTML form POST (works without CORS)
-  function postToVeracross(){
-    const d = readForm();
-    if(!d.legacyId){ alert('Legacy Student ID is required.'); return; }
-    // Create a form with the fields we know. Field names may need mapping server-side.
-    const form = document.createElement('form');
-    form.method='POST';
-    form.action='https://checkin.veracross.com/frisch/kiosk/soutoffice';
-    form.target='_blank'; // open in new tab so the kiosk is unaffected
-
-    const fields = {
-      legacy_student_id: d.legacyId,
-      full_name: d.fullName,
-      grade: d.grade,
-      reason: d.reason,
-      destination: d.destination,
-      authorized_by: d.initials,
-      signout_time_iso: d.time.toISOString(),
-      return_by: d.returnBy
-    };
-    Object.entries(fields).forEach(([k,v])=>{
-      const input=document.createElement('input');
-      input.type='hidden'; input.name=k; input.value=v||''; form.appendChild(input);
-    });
-    document.body.appendChild(form);
-    form.submit();
-    form.remove();
-    status('Submitted to Veracross');
-  }
-
-    $('#btnPrint').addEventListener('click', doPrint);
-  $('#btnSubmit').addEventListener('click', postToVeracross);
-
-  // === KIOSK MODE ===
-  const kiosk = $('#kiosk');
-  const scanInput = $('#scanInput');
-  const kioskTitle = $('#kioskTitle');
-  const kioskStatus = $('#kioskStatus');
-  const enableKiosk = $('#enableKiosk');
-  const defReason = $('#defReason');
-  const defDestination = $('#defDestination');
-  const defInitials = $('#defInitials');
-  const requireMatch = $('#requireMatch');
-
-  // restore settings
-  enableKiosk.checked = localStorage.getItem('fp_kiosk')==='1';
-  defReason.value = localStorage.getItem('fp_defReason')||'Appointment';
-  defDestination.value = localStorage.getItem('fp_defDestination')||'';
-  defInitials.value = localStorage.getItem('fp_defInitials')||'';
-  requireMatch.checked = (localStorage.getItem('fp_requireMatch')||'1')==='1';
-
-  function persist(){
-    localStorage.setItem('fp_kiosk', enableKiosk.checked?'1':'0');
-    localStorage.setItem('fp_defReason', defReason.value);
-    localStorage.setItem('fp_defDestination', defDestination.value);
-    localStorage.setItem('fp_defInitials', defInitials.value);
-    localStorage.setItem('fp_requireMatch', requireMatch.checked?'1':'0');
-  }
-  [enableKiosk,defReason,defDestination,defInitials,requireMatch].forEach(el=>el.addEventListener('change',persist));
-
-  function showKiosk(on){
-    kiosk.style.display = on?'flex':'none';
-    if(on){ setTimeout(()=>scanInput.focus(), 50); }
-  }
-  showKiosk(enableKiosk.checked);
-  enableKiosk.addEventListener('change',()=>showKiosk(enableKiosk.checked));
-
-  function handleScan(id){
-    id = String(id||'').trim();
-    if(!id){ return; }
-    const s = roster.get(id);
-    if(!s && requireMatch.checked){
-      kioskTitle.textContent = 'Unknown ID';
-      kioskStatus.innerHTML = `<span class=\"err\">${id}</span> not in roster.`;
-      scanInput.value='';
-      setTimeout(()=>{kioskTitle.textContent='Ready — tap your card'; kioskStatus.textContent=''; scanInput.focus()}, 1400);
-      return;
+  // === ROSTER LOADING (very simple) ===
+  // Put a CSV named "roster.csv" in the same folder as this index.html (GitHub Pages will serve it).
+  // Columns required: Person ID, Full Name, Legacy Student ID, Current Grade
+  const roster = new Map();
+  async function loadRoster(){
+    try{
+      const res = await fetch('roster.csv', {cache:'no-store'});
+      if(!res.ok) throw new Error('No roster.csv found');
+      const text = await res.text();
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const header = lines.shift().split(',').map(h=>h.trim().toLowerCase());
+      const idxLegacy = header.indexOf('legacy student id');
+      const idxName = header.indexOf('full name');
+      const idxGrade = header.indexOf('current grade');
+      if(idxLegacy===-1||idxName===-1){ throw new Error('Missing required headers'); }
+      for(const line of lines){
+        const cols = line.split(',');
+        const legacy = (cols[idxLegacy]||'').trim();
+        const name = (cols[idxName]||'').trim();
+        const grade = (cols[idxGrade]||'').trim();
+        if(legacy) roster.set(legacy, {name,grade});
+      }
+      document.getElementById('roster_status').textContent = `Roster loaded: ${roster.size} students.`;
+    }catch(e){
+      document.getElementById('roster_status').textContent = 'Roster not loaded. Place a roster.csv next to this file.';
     }
-    // populate UI silently
-    $('#legacyId').value = id;
-    $('#fullName').value = s? s.name : '';
-    $('#grade').value = s? s.grade : '';
-    $('#reason').value = defReason.value;
-    $('#destination').value = defDestination.value;
-    $('#initials').value = defInitials.value;
-    setNow();
-
-    kioskTitle.textContent = s? s.name : 'Student';
-    kioskStatus.innerHTML = '<span class=\"ok\">Printing & submitting…</span>';
-
-    // print then submit
-    doPrint();
-    postToVeracross();
-
-    // reset for next scan
-    scanInput.value='';
-    setTimeout(()=>{kioskTitle.textContent='Ready — tap your card'; kioskStatus.textContent=''; scanInput.focus()}, 1200);
   }
+  loadRoster();
 
-  // Most card readers act as a keyboard and send the ID followed by Enter
-  let buffer = '';
-  scanInput.addEventListener('keydown', (e)=>{
-    if(e.key==='Enter'){ e.preventDefault(); handleScan(buffer); buffer=''; return; }
-    if(e.key.length===1){ buffer += e.key; }
+  // Autofill name/grade (optional) when scanning
+  const idInput = document.getElementById('legacy_id');
+  idInput.addEventListener('input', ()=>{
+    const hit = roster.get(idInput.value.trim());
+    document.getElementById('checkin_response').textContent = hit? `${hit.name} • ${hit.grade}` : '';
   });
-  kiosk.addEventListener('click', ()=> scanInput.focus());
 
-})();
+  // On submit: the browser navigates to Veracross and shows their notice.
+  // (No AJAX; keeps it simple and ensures their success page appears.)
+
+  // Focus field for scanners
+  window.addEventListener('load', ()=> idInput.focus());
 </script>
 </body>
 </html>
