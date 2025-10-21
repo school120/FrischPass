@@ -5,23 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>FrischPass – Early Dismissal</title>
 <style>
-  body{
-    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-    background:#0b1020; color:#fff; text-align:center; padding:40px;
-  }
-  #clock{font-size:18px; color:#cfd8ff; margin-bottom:20px}
-  input[type=text]{
-    width:280px; padding:14px; border-radius:10px;
-    border:1px solid rgba(255,255,255,.18); background:#0f1530; color:#fff;
-    font-size:18px; text-align:center;
-  }
-  .row{margin-top:16px}
-  button{
-    padding:12px 18px; border:none; border-radius:10px; background:#91011c;
-    color:#fff; font-weight:700; font-size:16px; cursor:pointer;
-  }
-  #status{margin-top:16px; font-size:16px; color:#9fe0ad}
-  .hint{margin-top:10px; font-size:13px; color:#9fb0d0}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff;text-align:center;padding:40px}
+  #clock{font-size:18px;color:#cfd8ff;margin-bottom:20px}
+  input[type=text]{width:280px;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px;text-align:center}
+  #go{margin-top:18px;padding:14px 22px;border:none;border-radius:10px;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
+  #status{margin-top:14px;font-size:16px;color:#9fe0ad}
 </style>
 </head>
 <body>
@@ -30,134 +18,96 @@
 <div id="clock"></div>
 
 <input id="legacy_id" type="text" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
-<div class="row">
-  <button id="printBtn">Print Pass</button>
-  <button id="testBtn" style="margin-left:8px;background:#3556e8">Test Print</button>
-</div>
+<button id="go">Sign Out</button>
 <div id="status"></div>
-<div class="hint">
-  Host this page and <code>roster.csv</code> + <code>logo.png</code> in the same GitHub repo.<br>
-  Chrome will print to the device’s default printer (configure in Admin Console).
-</div>
 
-<!-- PapaParse for reliable CSV parsing -->
+<!-- PapaParse for CSV -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
-/* ===== Config ===== */
-const LOGO_URL  = "https://school120.github.io/FrischPass/logo.png";   // watermark image
-const ROSTER_URL= "roster.csv";                                         // CSV in same repo
+const LOGO_URL  = "https://school120.github.io/FrischPass/logo.png";
+const ROSTER_URL= "roster.csv";
+const POST_URL  = "https://checkin.veracross.com/frisch/checkin/log";
 
-/* ===== Clock ===== */
-setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleString(); }, 1000);
-
-/* ===== Load roster.csv (headers: Person ID, Full Name, Legacy Student ID, Current Grade) ===== */
 const roster = new Map();
-async function loadRoster(){
-  const status = document.getElementById("status");
+
+// clock
+setInterval(()=>{document.getElementById("clock").textContent=new Date().toLocaleString();},1000);
+
+// load roster
+(async function(){
   try{
-    const res = await fetch(ROSTER_URL, { cache:"no-store" });
-    if(!res.ok) throw new Error("Roster fetch failed");
-    const text = await res.text();
-    const parsed = Papa.parse(text, { header:true, skipEmptyLines:true });
-    roster.clear();
-    parsed.data.forEach(row=>{
-      const id    = (row["Legacy Student ID"] || "").trim();
-      const name  = (row["Full Name"]         || "").trim();
-      const grade = (row["Current Grade"]     || "").trim();
-      if(id) roster.set(id, { name, grade });
+    const t = await (await fetch(ROSTER_URL,{cache:"no-store"})).text();
+    const parsed = Papa.parse(t,{header:true,skipEmptyLines:true});
+    parsed.data.forEach(r=>{
+      const id=(r["Legacy Student ID"]||"").trim();
+      if(id) roster.set(id,{name:(r["Full Name"]||"").trim(),grade:(r["Current Grade"]||"").trim()});
     });
-    status.style.color = "#9fe0ad";
-    status.textContent = `Roster loaded: ${roster.size} students.`;
-  }catch(e){
-    status.style.color = "#ffb3a1";
-    status.textContent = "⚠️ roster.csv not found or invalid.";
-  }
-}
-loadRoster();
+    document.getElementById("status").textContent=`Roster loaded: ${roster.size} students.`;
+  }catch{ document.getElementById("status").textContent=""; }
+})();
 
-/* ===== Main flow: lookup + print ===== */
-function handlePrint(testMode=false){
-  const field  = document.getElementById("legacy_id");
-  const status = document.getElementById("status");
+// submit + print
+async function submitAndPrint(){
+  const field = document.getElementById("legacy_id");
   const id = field.value.trim();
+  if(!id) return;
 
-  let name = "Unknown Student", grade = "";
-  if(!testMode){
-    if(!id){
-      status.style.color = "#ffb3a1";
-      status.textContent = "Scan or enter an ID.";
-      return;
-    }
-    const hit = roster.get(id);
-    if(hit){ name = hit.name; grade = hit.grade; }
-  } else {
-    // Test print preview text
-    name = "Test Student";
-    grade = "Grade 9";
-  }
+  const info = roster.get(id)||{name:"Unknown Student",grade:""};
+  const name = info.name, grade = info.grade;
 
-  status.style.color = "#9fe0ad";
-  status.textContent = testMode
-    ? "Sending TEST label to printer…"
-    : `Printing pass for ${name}${grade ? " ("+grade+")" : ""}…`;
+  // background POST via hidden popup target
+  const win = window.open("", "bgSubmit", "width=10,height=10,left=-10000,top=-10000");
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = POST_URL;
+  form.target = "bgSubmit";
+  addHidden(form,"legacy_id",id);
+  addHidden(form,"kiosk_type","5");
+  addHidden(form,"check_in_method","3");
+  addHidden(form,"kiosk","9");
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(()=>{ try{win.close();}catch{} document.body.removeChild(form); },1200);
 
-  printPass({ name, grade });
+  printPass(name,grade);
 
-  // clear field for next scan
-  field.value = "";
+  field.value="";
   field.focus();
 }
 
-/* ===== Print: exact specs for Brother QL-820NWB 62×100 mm ===== */
-function printPass({name, grade}){
-  const now = new Date().toLocaleString();
-  const w = window.open("", "printpass", "width=900,height=560,left=-9999,top=-9999");
+function addHidden(form,n,v){ const i=document.createElement("input"); i.type="hidden"; i.name=n; i.value=v; form.appendChild(i); }
 
+// print (62×100mm, watermark, no ID)
+function printPass(name,grade){
+  const now=new Date().toLocaleString();
+  const w=window.open("","printpass","width=900,height=560,left=-9999,top=-9999");
   w.document.write(`<!doctype html>
 <html><head><meta charset="utf-8"><title>FrischPass</title>
   <style>
-    /* Exact media size: 100mm wide × 62mm tall (landscape) */
-    @page {
-      size: 100mm 62mm;
-      margin: 3.8mm; /* ≈ 0.15in */
-    }
-    @media print {
-      html, body {
-        width: 100mm; height: 62mm;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-    }
+    @page { size: 100mm 62mm; margin: 3.8mm }
+    @media print { html,body{width:100mm;height:62mm;-webkit-print-color-adjust:exact;print-color-adjust:exact} }
     body{
       margin:0;
-      width: calc(100mm - 7.6mm); /* 100 - 2*3.8 */
-      height: calc(62mm - 7.6mm); /*  62 - 2*3.8 */
-      font-family: Arial, sans-serif;
-      position: relative;
-      overflow: hidden;
+      width:calc(100mm - 7.6mm);
+      height:calc(62mm - 7.6mm);
+      font-family:Arial,sans-serif;
+      position:relative; overflow:hidden;
     }
-    /* Watermark behind text */
     .wm{
       position:absolute; inset:0;
       background:url(${LOGO_URL}) no-repeat center center;
-      background-size: 85% auto;
-      opacity:0.10;    /* faint */
-      pointer-events:none;
+      background-size:85% auto; opacity:.10; pointer-events:none;
     }
-    /* Text panel */
     .lab{
-      position:relative;
-      width:100%; height:100%;
-      border:0.6mm solid #000;
-      box-sizing:border-box;
-      padding:3.0mm 4.0mm;
-      display:flex; flex-direction:column;
+      position:relative; width:100%; height:100%;
+      border:.6mm solid #000; box-sizing:border-box;
+      padding:3mm 4mm; display:flex; flex-direction:column;
       align-items:flex-start; justify-content:flex-start;
     }
-    h1{ margin:0 0 1.4mm; font-size:7mm; line-height:1.05 }
-    .line{ font-size:4.2mm; line-height:1.25; margin-top:0.8mm }
-    .big{  font-size:5mm;  font-weight:bold; margin-top:2.0mm }
+    h1{margin:0 0 1.4mm; font-size:7mm; line-height:1.05}
+    .line{font-size:4.2mm; line-height:1.25; margin-top:.8mm}
+    .big{font-size:5mm; font-weight:bold; margin-top:2mm}
   </style>
 </head>
 <body>
@@ -165,29 +115,19 @@ function printPass({name, grade}){
   <div class="lab">
     <h1>FRISCHPASS – EARLY DISMISSAL</h1>
     <div class="line"><b>${escapeHtml(name)}</b></div>
-    <div class="line">Grade: ${escapeHtml(grade || "")}</div>
-    <div class="big">Signed out: ${escapeHtml(now)}</div>
+    <div class="line">Grade: ${escapeHtml(grade||"")}</div>
+    <div class="big">Signed out: ${escapeHtml(new Date().toLocaleString())}</div>
   </div>
-  <script>window.print(); setTimeout(()=>window.close(), 300);<\/script>
+  <script>window.print();setTimeout(()=>window.close(),300);<\/script>
 </body></html>`);
-
   w.document.close();
 }
 
-/* ===== Helpers ===== */
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({
-    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
-  }[c]));
-}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 
-/* ===== Wire up UI ===== */
-document.getElementById("printBtn").addEventListener("click", ()=>handlePrint(false));
-document.getElementById("testBtn").addEventListener("click",  ()=>handlePrint(true));
-document.getElementById("legacy_id").addEventListener("keydown", e=>{
-  if(e.key==="Enter"){ e.preventDefault(); handlePrint(false); }
-});
-window.addEventListener("load", ()=> document.getElementById("legacy_id").focus());
+document.getElementById("go").addEventListener("click", submitAndPrint);
+document.getElementById("legacy_id").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); submitAndPrint(); }});
+window.addEventListener("load",()=>document.getElementById("legacy_id").focus());
 </script>
 </body>
 </html>
