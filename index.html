@@ -5,45 +5,55 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Frisch Kiosk – Early Dismissal</title>
 <style>
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff;text-align:center;padding:40px}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  background:#0b1020;color:#fff;text-align:center;padding:40px
+}
 #clock{font-size:18px;color:#cfd8ff;margin-bottom:20px}
-input[type=text]{width:280px;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px;text-align:center}
-#sign_in_button input[type=button]{margin-top:20px;padding:14px 22px;border:none;border-radius:10px;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
+input[type=text]{
+  width:280px;padding:14px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.18);
+  background:#0f1530;color:#fff;font-size:18px;text-align:center
+}
+#sign_in_button input[type=button]{
+  margin-top:20px;padding:14px 22px;border:none;border-radius:10px;
+  background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer
+}
 #response{margin-top:20px;font-size:16px;color:#9fe0ad}
 </style>
 </head>
 <body>
-
 <h1>Sign Out Main Office</h1>
 <div id="clock"></div>
 
-<input type="text" id="legacy_id" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
+<input type="text" id="legacy_id" placeholder="Scan Legacy Student ID" autocomplete="off" autofocus />
 <div id="sign_in_button"><input type="button" value="Sign Out" onclick="submitForm()" /></div>
 <div id="response"></div>
 
 <script>
-const kioskURL = "https://checkin.veracross.com/frisch/checkin/log";
-const roster = new Map();
+const kioskURL="https://checkin.veracross.com/frisch/checkin/log";
+const roster=new Map();
+setInterval(()=>document.getElementById("clock").textContent=new Date().toLocaleString(),1000);
 
-// live clock
-setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleString(),1000);
-
-// load roster.csv (must be in same folder)
+// load roster.csv
 async function loadRoster(){
   try{
     const res=await fetch("roster.csv",{cache:"no-store"});
     if(!res.ok)throw 0;
     const text=await res.text();
     const lines=text.split(/\\r?\\n/).filter(Boolean);
-    const header=lines.shift().split(",").map(h=>h.trim().toLowerCase());
+    const header=lines.shift().split(/,|\\t/).map(h=>h.trim().toLowerCase());
     const iId=header.indexOf("legacy student id");
     const iName=header.indexOf("full name");
+    const iGrade=header.indexOf("current grade");
     if(iId===-1||iName===-1)throw 0;
     lines.forEach(l=>{
-      const c=l.split(",");
+      const c=l.split(/,|\\t/);
       const id=(c[iId]||"").trim();
       const name=(c[iName]||"").trim();
-      if(id)roster.set(id,name);
+      const grade=(c[iGrade]||"").trim();
+      if(id)roster.set(id,{name,grade});
     });
     document.getElementById("response").textContent=`Roster loaded: ${roster.size} students.`;
   }catch{
@@ -56,33 +66,33 @@ function submitForm(){
   const id=document.getElementById("legacy_id").value.trim();
   const resp=document.getElementById("response");
   if(!id){resp.style.color="#ffb3a1";resp.textContent="Scan or enter an ID.";return;}
-  const name=roster.get(id)||"Unknown Student";
+  const info=roster.get(id)||{name:"Unknown Student",grade:""};
+  const name=info.name, grade=info.grade;
 
-  // tiny off-screen popup to submit to Veracross
-  const w=window.open("", "bgSubmit", "width=300,height=200,left=-10000,top=-10000");
+  // hidden popup to Veracross
+  const w=window.open("", "bgSubmit","width=300,height=200,left=-10000,top=-10000");
   if(!w){resp.style.color="#ffb3a1";resp.textContent="Popup blocked! Allow popups.";return;}
-  const html=`
-    <form id='f' method='POST' action='${kioskURL}'>
+  const html=`<form id='f' method='POST' action='${kioskURL}'>
       <input type='hidden' name='legacy_id' value='${id}'>
       <input type='hidden' name='kiosk_type' value='5'>
       <input type='hidden' name='check_in_method' value='3'>
       <input type='hidden' name='kiosk' value='9'>
     </form>
-    <script>document.getElementById('f').submit(); setTimeout(()=>window.close(),1500);<\/script>`;
-  w.document.write(html); w.document.close();
+    <script>document.getElementById('f').submit();setTimeout(()=>window.close(),1200);<\/script>`;
+  w.document.write(html);w.document.close();
 
   resp.style.color="#cfd8ff";
   resp.textContent=`Submitting ${name} (${id})…`;
   setTimeout(()=>{
     resp.style.color="#9fe0ad";
     resp.textContent=`Submitted to Veracross • ${name}`;
-    printPass(id,name);
+    printPass(id,name,grade);
   },1500);
 }
 
-function printPass(id,name){
+function printPass(id,name,grade){
   const now=new Date().toLocaleString();
-  const p=window.open("","label","width=400,height=260");
+  const p=window.open("","label","width=400,height=260,left=-9999,top=-9999");
   p.document.write(`<!doctype html><html><head><meta charset=utf-8><title>Pass</title>
   <style>@page{size:3.94in 2.44in;margin:0.15in}
   body{margin:0;font-family:Arial,sans-serif}
@@ -90,13 +100,15 @@ function printPass(id,name){
   h1{margin:0 0 4px;font-size:18px}
   .big{font-size:16px;font-weight:bold;margin-top:6px}
   </style></head><body>
-  <div class='lab'><h1>FRISCHPASS – EARLY DISMISSAL</h1>
-  <div><b>${name}</b></div>
-  <div>ID: ${id}</div>
-  <div class='big'>Signed out: ${now}</div>
+  <div class='lab'>
+    <h1>FRISCHPASS – EARLY DISMISSAL</h1>
+    <div><b>${name}</b></div>
+    <div>Grade: ${grade||""}</div>
+    <div>ID: ${id}</div>
+    <div class='big'>Signed out: ${now}</div>
   </div></body></html>`);
-  p.document.close(); p.focus(); p.print(); p.close();
-  document.getElementById("legacy_id").value=""; document.getElementById("legacy_id").focus();
+  p.document.close();p.focus();p.print();p.close();
+  document.getElementById("legacy_id").value="";document.getElementById("legacy_id").focus();
 }
 
 document.getElementById("legacy_id").addEventListener("keydown",e=>{
