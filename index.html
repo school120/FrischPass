@@ -8,42 +8,20 @@
 body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:#0b1020;
-  color:#fff;
-  text-align:center;
-  padding:40px;
+  background:#0b1020; color:#fff; text-align:center; padding:40px;
 }
-#clock{
-  font-size:18px;
-  color:#cfd8ff;
-  margin-bottom:20px;
-}
+#clock{font-size:18px; color:#cfd8ff; margin-bottom:20px}
 input[type=text]{
-  width:280px;
-  padding:14px;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.18);
-  background:#0f1530;
-  color:#fff;
-  font-size:18px;
-  text-align:center;
+  width:280px; padding:14px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.18); background:#0f1530; color:#fff;
+  font-size:18px; text-align:center;
 }
 #sign_in_button input[type=button]{
-  margin-top:20px;
-  padding:14px 22px;
-  border:none;
-  border-radius:10px;
-  background:#91011c;
-  color:#fff;
-  font-weight:700;
-  font-size:18px;
-  cursor:pointer;
+  margin-top:20px; padding:14px 22px; border:none; border-radius:10px;
+  background:#91011c; color:#fff; font-weight:700; font-size:18px; cursor:pointer;
 }
-#response{
-  margin-top:20px;
-  font-size:16px;
-  color:#9fe0ad;
-}
+#response{margin-top:20px; font-size:16px; color:#9fe0ad}
+.small{font-size:13px;color:#9fb0d0;margin-top:8px;line-height:1.3}
 </style>
 </head>
 <body>
@@ -55,21 +33,28 @@ input[type=text]{
 <div id="sign_in_button"><input type="button" value="Sign Out" onclick="handleScan()" /></div>
 <div id="response"></div>
 
-<!-- PapaParse for CSV parsing -->
+<div class="small">
+  Optional (first session only): open the Veracross tab and click your “Install Veracross Listener” bookmarklet there.
+  <div style="margin-top:8px">
+    <button onclick="openVera()">Open Veracross tab</button>
+  </div>
+</div>
+
+<!-- PapaParse for robust CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
 const VC_ORIGIN = "https://checkin.veracross.com";
-const VC_KIOSK_URL = VC_ORIGIN + "/frisch/kiosk/soutoffice";
-let vcWin = null; // handle to the Veracross tab/window
+const VC_KIOSK_URL = "https://checkin.veracross.com/frisch/kiosk/soutoffice";
+let vcWin = null;
 
 const roster = new Map();
-const LOGO_URL = "https://school120.github.io/FrischPass/logo.png"; // your watermark image
+const LOGO_URL = "https://school120.github.io/FrischPass/logo.png"; // watermark image (PNG/SVG/JPG)
 
 // live clock
 setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleString(); }, 1000);
 
-// load roster.csv
+// load roster.csv (headers: Person ID, Full Name, Legacy Student ID, Current Grade)
 async function loadRoster(){
   try{
     const res = await fetch("roster.csv",{cache:"no-store"});
@@ -90,14 +75,12 @@ async function loadRoster(){
 }
 loadRoster();
 
-// open or reuse Veracross tab
+// open/reuse Veracross tab
 function openVera(){
-  try{
-    vcWin = window.open(VC_KIOSK_URL, "veracross_tab");
-  }catch(e){}
+  try{ vcWin = window.open(VC_KIOSK_URL, "veracross_tab"); }catch(e){}
 }
 
-// send ID to Veracross tab
+// send ID to Veracross tab (bookmarklet-injected listener fills & submits)
 function postToVera(id){
   try{
     if (!vcWin || vcWin.closed) openVera();
@@ -105,7 +88,7 @@ function postToVera(id){
   }catch(e){}
 }
 
-// handle scan
+// handle scan/enter
 function handleScan(){
   const input = document.getElementById("legacy_id");
   const id = input.value.trim();
@@ -115,58 +98,95 @@ function handleScan(){
   const info = roster.get(id) || {name:"Unknown Student", grade:""};
   const {name, grade} = info;
 
-  postToVera(id);
+  postToVera(id); // background submission on the VC tab
   resp.style.color="#9fe0ad";
   resp.textContent=`Signed out: ${name} (${grade})`;
 
-  printPass(name, grade);
+  printPass(name, grade); // auto-print (no ID shown)
 
+  // clear for next scan
   input.value = "";
   input.focus();
 }
 
-// print pass with watermark logo behind text
+// PRINT: exact specs for Brother QL-820NWB 62×100 mm (landscape)
 function printPass(name, grade){
   const now = new Date().toLocaleString();
-  const w = window.open("", "printpass", "width=400,height=260,left=-9999,top=-9999");
+  const w = window.open("", "printpass", "width=800,height=520,left=-9999,top=-9999"); // big enough for Chromebooks
+
   w.document.write(`<!doctype html>
-  <html><head><meta charset=utf-8><title>FrischPass</title>
+  <html><head><meta charset="utf-8"><title>FrischPass</title>
     <style>
-      @page { size:3.94in 2.44in; margin:0.15in }
+      /* Exact media size: 100mm wide × 62mm tall (landscape) */
+      @page {
+        size: 100mm 62mm;
+        margin: 3.8mm; /* ≈0.15in safe margin */
+      }
+      @media print {
+        html, body {
+          width: 100mm;
+          height: 62mm;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          /* Avoid Chrome print headers/footers space (managed by policy in kiosk) */
+        }
+      }
+      /* Canvas area inside margins */
       body {
-        margin:0;
-        font-family:Arial,sans-serif;
-        background:url(${LOGO_URL}) no-repeat center center;
-        background-size:contain;
-        opacity:0.85;
+        margin: 0;
+        width: calc(100mm - 7.6mm);  /* 100 - 2*3.8 */
+        height: calc(62mm - 7.6mm);  /* 62 - 2*3.8 */
+        font-family: Arial, sans-serif;
+        position: relative;
+        overflow: hidden;
       }
+      /* Watermark behind text */
+      .wm {
+        position: absolute;
+        inset: 0;
+        background: url(${LOGO_URL}) no-repeat center center;
+        background-size: 85% auto;        /* scale watermark */
+        opacity: 0.10;                     /* faint watermark */
+        pointer-events: none;
+      }
+      /* Content panel (text) */
       .lab {
-        width:3.64in; height:2.14in;
-        border:2px solid #000;
-        padding:.08in .12in;
-        background-color:rgba(255,255,255,0.8);
-        text-align:center;
-        position:relative;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border: 0.6mm solid #000;
+        box-sizing: border-box;
+        padding: 3.0mm 4.0mm;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
       }
-      h1 { margin:0 0 4px; font-size:18px }
-      .big { font-size:16px; font-weight:bold; margin-top:6px }
+      h1 { margin: 0 0 1.4mm; font-size: 7mm; line-height: 1.05 }
+      .line { font-size: 4.2mm; line-height: 1.25; margin-top: 0.8mm }
+      .big  { font-size: 5mm; font-weight: bold; margin-top: 2.0mm }
     </style>
-  </head><body>
-    <div class='lab'>
+  </head>
+  <body>
+    <div class="wm"></div>
+    <div class="lab">
       <h1>FRISCHPASS – EARLY DISMISSAL</h1>
-      <div><b>${name}</b></div>
-      <div>Grade: ${grade || ""}</div>
-      <div class='big'>Signed out: ${now}</div>
+      <div class="line"><b>${name}</b></div>
+      <div class="line">Grade: ${grade || ""}</div>
+      <div class="big">Signed out: ${now}</div>
     </div>
-    <script>window.print();setTimeout(()=>window.close(),300);<\/script>
+    <script>
+      window.print();
+      setTimeout(()=>window.close(), 300);
+    <\/script>
   </body></html>`);
+
   w.document.close();
 }
 
 document.getElementById("legacy_id").addEventListener("keydown", e=>{
   if(e.key==="Enter"){ e.preventDefault(); handleScan(); }
 });
-
 window.addEventListener("load", ()=>{ openVera(); document.getElementById("legacy_id").focus(); });
 </script>
 </body>
