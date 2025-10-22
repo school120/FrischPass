@@ -1,138 +1,89 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>FrischPass – Early Dismissal</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frisch Kiosk</title>
+<meta name="theme-color" content="#111111">
 <style>
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#fff;text-align:center;padding:40px}
-  #clock{font-size:18px;color:#cfd8ff;margin-bottom:20px}
-  input[type=text]{width:280px;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1530;color:#fff;font-size:18px;text-align:center}
-  #go{margin-top:18px;padding:14px 22px;border:none;border-radius:10px;background:#91011c;color:#fff;font-weight:700;font-size:18px;cursor:pointer}
-  #status{margin-top:12px;font-size:16px;color:#9fe0ad;min-height:1.2em}
-</style>
-</head><body>
-<h1>Sign Out – Main Office</h1>
-<div id="clock"></div>
-<input id="legacy_id" type="text" placeholder="Scan or type Legacy Student ID" autocomplete="off" autofocus />
-<button id="go">Sign Out</button>
-<div id="status"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script>
-const VC_ORIGIN = "https://checkin.veracross.com";
-const VC_URL    = "https://checkin.veracross.com/frisch/kiosk/soutoffice";
-const LOGO_URL  = "https://school120.github.io/FrischPass/logo.png";
-const ROSTER_URL= "roster.csv";
-
-let vcWin = null;
-let vcReady = false;      // becomes true after 'frisch_pong'
-const roster = new Map();
-
-setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleString();},1000);
-
-// Load roster
-(async function(){
-  try{
-    const txt = await (await fetch(ROSTER_URL,{cache:'no-store'})).text();
-    const p = Papa.parse(txt,{header:true,skipEmptyLines:true});
-    p.data.forEach(r=>{
-      const id=(r["Legacy Student ID"]||"").trim();
-      if(id) roster.set(id,{name:(r["Full Name"]||"").trim(),grade:(r["Current Grade"]||"").trim()});
-    });
-    document.getElementById('status').textContent=`Roster loaded: ${roster.size} students.`;
-  }catch{}
-})();
-
-function openVC(){ try{ vcWin = window.open(VC_URL,'veracross_tab'); }catch{} }
-
-// Ping VC tab to see if listener is active
-function pingVC(){
-  vcReady = false;
-  if(!vcWin || vcWin.closed) openVC();
-  setTimeout(()=>{ try{ vcWin.postMessage({type:'frisch_ping'}, VC_ORIGIN); }catch{} }, 300);
-  // If no pong in 2s, show hint
-  setTimeout(()=>{
-    if(!vcReady){
-      const s = document.getElementById('status');
-      s.style.color = '#ffb3a1';
-      s.textContent = 'Enable VC listener: open the VC tab and click your bookmarklet once.';
-    }
-  }, 2000);
+:root{--fg:#0b0b0b;--bg:#fff;--muted:#6b7280;--line:#e5e7eb;}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;color:var(--fg);background:var(--bg);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+.hidden{display:none!important;}
+.card{width:min(520px,92vw);margin:10vh auto;padding:20px 18px;border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.04);text-align:center;}
+input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font:16px system-ui;}
+button{width:100%;margin-top:10px;padding:12px 16px;border:1px solid #111;background:#111;color:#fff;border-radius:12px;font-weight:800;cursor:pointer;}
+.hint{color:var(--muted);font-size:12px;margin-top:.5rem}
+iframe{width:100%;height:70vh;border:0;margin-top:1rem}
+@page{size:62mm 100mm;margin:0;}
+@media print{
+  body>*:not(#print-root):not(#print-root *){display:none!important;}
 }
+.label{position:relative;width:62mm;height:100mm;margin:0;padding:6mm 4mm;overflow:hidden;background:#fff;}
+.wm{position:absolute;inset:0;background:url('./logo.png') center/contain no-repeat;opacity:.12;filter:grayscale(100%);}
+.block{position:relative;display:flex;flex-direction:column;gap:2mm;margin-top:18mm;margin-left:2mm;}
+.name{font:900 22pt/1.1 system-ui;}
+.sub{font:600 12pt/1.1 system-ui;}
+.foot{position:absolute;left:4mm;right:4mm;bottom:4mm;font:500 9pt system-ui;}
+</style>
+</head>
+<body>
+<div id="start" class="card">
+  <h1>The Frisch School</h1>
+  <p><strong>Visitor / Student Check-In</strong></p>
+  <label>Legacy ID</label>
+  <input id="legacy" inputmode="numeric" placeholder="e.g. 123456" autofocus>
+  <button id="go">Begin Check-In</button>
+  <p class="hint">This will open Veracross; once it confirms, printing happens automatically.</p>
+</div>
 
-window.addEventListener('message', (e)=>{
-  if(e.origin !== VC_ORIGIN) return;
-  const d = e.data || {};
-  if(d.type === 'frisch_pong'){
-    vcReady = true;
-    document.getElementById('status').style.color='#9fe0ad';
-    document.getElementById('status').textContent='Ready';
-  } else if(d.type === 'frisch_ok'){
-    const info = roster.get(String(d.id)||"") || {name:"Unknown Student", grade:""};
-    printPass(info.name, info.grade);
-    ready();
-  } else if(d.type === 'frisch_err'){
-    document.getElementById('status').style.color = '#ffb3a1';
-    document.getElementById('status').textContent = 'Submit failed';
-    ready();
-  }
+<iframe id="vc" class="hidden"></iframe>
+
+<div id="print-root" class="label hidden">
+  <div class="wm"></div>
+  <div class="block">
+    <div id="nm" class="name"></div>
+    <div id="sb" class="sub"></div>
+  </div>
+  <div id="ft" class="foot"></div>
+</div>
+
+<script>
+const VC_URL = "https://checkin.veracross.com/frisch/kiosk/soutoffice";
+const iframe = document.getElementById("vc");
+const start = document.getElementById("start");
+const label = document.getElementById("print-root");
+
+document.getElementById("go").addEventListener("click", () => {
+  const id = document.getElementById("legacy").value.trim();
+  if(!id){alert("Enter Legacy ID");return;}
+  start.classList.add("hidden");
+  iframe.classList.remove("hidden");
+  iframe.src = `${VC_URL}?legacy_id=${encodeURIComponent(id)}`;
+  watchVC(id);
 });
 
-function submit(){
-  const inp = document.getElementById('legacy_id');
-  const id = inp.value.trim();
-  if(!id) return;
-
-  document.getElementById('status').style.color='#cfd8ff';
-  document.getElementById('status').textContent='Submitting…';
-
-  // ensure VC tab and listener
-  if(!vcWin || vcWin.closed) openVC();
-  if(!vcReady) pingVC();
-
-  setTimeout(()=>{ // send after we tried to ensure listener
-    try{ vcWin.postMessage({type:'frisch_legacy_id', id:id}, VC_ORIGIN); }catch{}
-  }, 700);
-
-  inp.value='';
+function watchVC(id){
+  const interval = setInterval(()=>{
+    try{
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      const success = doc.querySelector(".checkin-success,[data-kiosk-success='1'],.ticket-ready");
+      if(success){
+        clearInterval(interval);
+        printLabel(id);
+      }
+    }catch(e){}
+  }, 1000);
 }
 
-function ready(){
-  const inp = document.getElementById('legacy_id');
-  inp.value=''; inp.focus();
-  document.getElementById('status').style.color='#9fe0ad';
-  document.getElementById('status').textContent='Done';
+function printLabel(id){
+  iframe.classList.add("hidden");
+  label.classList.remove("hidden");
+  document.getElementById("nm").textContent = "ID: " + id;
+  document.getElementById("sb").textContent = "Visitor";
+  document.getElementById("ft").textContent = new Date().toLocaleDateString() + " • The Frisch School";
+  setTimeout(()=>window.print(),200);
 }
-
-// Print (62×100mm, watermark, no ID)
-function printPass(name,grade){
-  const now=new Date().toLocaleString();
-  const w=window.open('','printpass','width=900,height=560,left=-9999,top=-9999');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>FrischPass</title>
-  <style>
-    @page { size: 100mm 62mm; margin: 3.8mm }
-    @media print { html,body{width:100mm;height:62mm;-webkit-print-color-adjust:exact;print-color-adjust:exact} }
-    body{margin:0;width:calc(100mm - 7.6mm);height:calc(62mm - 7.6mm);font-family:Arial,sans-serif;position:relative;overflow:hidden}
-    .wm{position:absolute;inset:0;background:url(${LOGO_URL}) no-repeat center center;background-size:85% auto;opacity:.10;pointer-events:none}
-    .lab{position:relative;width:100%;height:100%;border:.6mm solid #000;box-sizing:border-box;padding:3mm 4mm;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
-    h1{margin:0 0 1.4mm;font-size:7mm;line-height:1.05}
-    .line{font-size:4.2mm;line-height:1.25;margin-top:.8mm}
-    .big{font-size:5mm;font-weight:bold;margin-top:2mm}
-  </style></head><body>
-  <div class="wm"></div>
-  <div class="lab">
-    <h1>FRISCHPASS – EARLY DISMISSAL</h1>
-    <div class="line"><b>${escapeHtml(name)}</b></div>
-    <div class="line">Grade: ${escapeHtml(grade||'')}</div>
-    <div class="big">Signed out: ${escapeHtml(now)}</div>
-  </div>
-  <script>window.print();setTimeout(()=>window.close(),300);<\/script>
-  </body></html>`);
-  w.document.close();
-}
-
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-
-document.getElementById('go').addEventListener('click', submit);
-document.getElementById('legacy_id').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submit(); }});
-window.addEventListener('load', ()=>{ openVC(); pingVC(); document.getElementById('legacy_id').focus(); });
 </script>
-</body></html>
+</body>
+</html>
