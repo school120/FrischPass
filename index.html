@@ -3,61 +3,48 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Frisch Kiosk</title>
+<title>Frisch Kiosk – Print Label</title>
 <meta name="theme-color" content="#111111" />
-
 <style>
-/* ====== Base (matches your extension’s tone) ====== */
-:root { --fg:#0b0b0b; --bg:#ffffff; --muted:#6b7280; --line:#e5e7eb; }
-* { box-sizing: border-box; }
-html, body { height:100%; margin:0; color:var(--fg); background:var(--bg);
-  font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-.hidden{ display:none !important; }
+:root{--fg:#0b0b0b;--bg:#fff;--muted:#6b7280;--line:#e5e7eb;}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;color:var(--fg);background:var(--bg);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+.hidden{display:none!important}
 
-/* ====== Start Card (Legacy ID entry) ====== */
-.surface{ display:grid; place-items:center; min-height:100vh; }
-.card{ width:min(520px,92vw); background:#fff; border:1px solid var(--line); border-radius:14px;
-  padding:20px 18px; box-shadow:0 1px 4px rgba(0,0,0,.04); text-align:center; }
-.title{ margin:.25rem 0 0; font:800 20px/1.1 system-ui; letter-spacing:.2px; }
-.subtitle{ margin:4px 0 14px; color:var(--muted); font-weight:600; }
-.lbl{ display:block; text-align:left; font-weight:700; margin:.5rem 0 .35rem; }
-.in{ width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font:16px system-ui; }
-.btn{ width:100%; margin-top:10px; padding:12px 16px; border:1px solid #111; background:#111; color:#fff;
-  border-radius:12px; font-weight:800; cursor:pointer; }
-.hint{ color:var(--muted); margin:.5rem 0 0; font-size:12px; }
+/* Card UI */
+.card{width:min(520px,92vw);margin:12vh auto;padding:20px 18px;border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.04);text-align:center;background:#fff}
+h1{margin:.25rem 0 0;font:800 20px/1.1 system-ui}
+p.muted{color:var(--muted)}
+label{display:block;text-align:left;font-weight:700;margin:.5rem 0 .35rem}
+input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font:16px system-ui}
+button{width:100%;margin-top:10px;padding:12px 16px;border:1px solid #111;background:#111;color:#fff;border-radius:12px;font-weight:800;cursor:pointer}
 
-/* ====== Label (based on your extension: "left layout" + logo watermark contain) ====== */
-@page { size: 62mm 100mm; margin:0; } /* DK-2205 62×100 mm */
-@media print { body > *:not(#print-root):not(#print-root *) { display:none !important; } }
-#print-root.label{ position:relative; width:62mm; height:100mm; margin:0; padding:6mm 4mm; overflow:hidden; background:#fff; }
-#print-root.label.left{ display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start; }
-#print-root .wm{ position:absolute; inset:0; background: url('./logo.png') center/contain no-repeat; opacity:.12; filter:grayscale(100%); pointer-events:none; }
-#print-root .block{ position:relative; display:flex; flex-direction:column; gap:2mm; margin-top:18mm; margin-left:2mm; }
-#print-root .name{ font:900 22pt/1.1 system-ui, Segoe UI, Roboto; }
-#print-root .sub{ font:600 12pt/1.1 system-ui, Segoe UI, Roboto; }
-#print-root .foot{ position:absolute; left:4mm; right:4mm; bottom:4mm; font:500 9pt system-ui, Segoe UI, Roboto; }
-
-/* Small status line (non-print) */
-.status { text-align:center; color:var(--muted); margin-top:.5rem; font-size:12px; }
+/* Print label: left layout + logo contain watermark (62×100 mm DK-2205) */
+@page{size:62mm 100mm;margin:0}
+@media print{ body>*:not(#print-root):not(#print-root *){display:none!important} }
+#print-root{position:relative;width:62mm;height:100mm;margin:0;padding:6mm 4mm;overflow:hidden;background:#fff}
+#print-root.left{display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start}
+#print-root .wm{position:absolute;inset:0;background:url('./logo.png') center/contain no-repeat;opacity:.12;filter:grayscale(100%);pointer-events:none}
+#print-root .block{position:relative;display:flex;flex-direction:column;gap:2mm;margin-top:18mm;margin-left:2mm}
+#print-root .name{font:900 22pt/1.1 system-ui,Segoe UI,Roboto}
+#print-root .sub{font:600 12pt/1.1 system-ui,Segoe UI,Roboto}
+#print-root .foot{position:absolute;left:4mm;right:4mm;bottom:4mm;font:500 9pt system-ui,Segoe UI,Roboto}
 </style>
 </head>
 <body>
 
-<!-- ====== START VIEW (Legacy ID entry) ====== -->
-<main id="start" class="surface">
-  <section class="card">
-    <h1 class="title">The Frisch School</h1>
-    <p class="subtitle">Visitor / Student Check-In</p>
-    <label class="lbl">Legacy ID</label>
-    <input id="legacy" class="in" inputmode="numeric" autofocus placeholder="e.g. 123456" />
-    <button id="go" class="btn">Begin Check-In</button>
-    <p class="hint">We’ll open Veracross; when it confirms, you’ll return here and we’ll print automatically.</p>
-    <div id="st" class="status"></div>
-  </section>
-</main>
+<!-- Input card (used when there’s no ?id= in the URL) -->
+<section id="card" class="card">
+  <h1>The Frisch School</h1>
+  <p class="muted">Print a visitor/student label from a Legacy ID.</p>
+  <label>Legacy ID</label>
+  <input id="legacy" inputmode="numeric" placeholder="e.g. 123456" autofocus />
+  <button id="printBtn">Print label</button>
+  <p class="muted" style="margin-top:.75rem">Tip: open this page as <code>?id=123456</code> to auto-print.</p>
+</section>
 
-<!-- ====== LABEL VIEW (auto-prints) ====== -->
-<div id="print-root" class="label left hidden" aria-label="Visitor label">
+<!-- Label to print -->
+<div id="print-root" class="left hidden" aria-label="Visitor label">
   <div class="wm"></div>
   <div class="block">
     <div id="nm" class="name"></div>
@@ -67,62 +54,50 @@ html, body { height:100%; margin:0; color:var(--fg); background:var(--bg);
 </div>
 
 <script>
-/**
- * Configure to match your extension’s behavior:
- * - VC_URL: your kiosk page
- * - LEGACY_PARAM: the parameter name Veracross expects for legacy id
- * - RETURN_PARAM: the parameter name Veracross accepts for redirect (must be supported by VC)
- * - SUCCESS_FLAG: query key we expect when VC redirects back on success (e.g., ok=1)
- * - Optional: VC can also pass back name/role/note
- */
-const VC_URL        = "https://checkin.veracross.com/frisch/kiosk/soutoffice";
-const LEGACY_PARAM  = "legacy_id";   // change if VC expects a different name
-const RETURN_PARAM  = "return";      // change if VC uses redirect_uri/callback/etc.
-const SUCCESS_FLAG  = "ok";          // we’ll check for ?ok=1 on return
+const $ = s => document.querySelector(s);
+function showCard(show){ $('#card').classList.toggle('hidden', !show); }
+function showLabel(show){ $('#print-root').classList.toggle('hidden', !show); }
 
-const $ = (s)=>document.querySelector(s);
-const qs = new URLSearchParams(location.search);
-
-// If we were redirected back from Veracross with success, show/print label immediately
-const cameBackOK = (qs.get(SUCCESS_FLAG) || qs.get("status") || "").toString().toLowerCase() === "1"
-                || (qs.get("status")||"").toLowerCase()==="ok";
-
-if (cameBackOK) {
-  const id   = qs.get("id")   || qs.get("legacy_id") || "";
-  const name = qs.get("name") || (id ? `ID: ${id}` : "Guest");
-  const role = qs.get("role") || "Visitor";
-  const note = qs.get("note") || "";
-
-  // Render label (left layout + contain watermark), mirroring your extension’s look
-  $("#nm").textContent = name;
-  $("#sb").textContent = role + (note ? ` — ${note}` : "");
-  $("#ft").textContent = new Date().toLocaleDateString() + " • The Frisch School";
-
-  $("#start").classList.add("hidden");
-  $("#print-root").classList.remove("hidden");
-  setTimeout(()=> window.print(), 150);
-} else {
-  // Show start view: submit Legacy ID and go to Veracross WITH a return back to this same page
-  $("#start").classList.remove("hidden");
-
-  $("#go").addEventListener("click", () => {
-    const id = $("#legacy").value.trim();
-    if (!id) { $("#st").textContent = "Please enter a Legacy ID."; return; }
-
-    // Build return URL back to *this same page*
-    const ret = new URL(location.href.split("?")[0]); // strip prior query
-    ret.searchParams.set("id", id);
-    ret.searchParams.set(SUCCESS_FLAG, "1");          // we’ll check this on return
-    // (If VC returns name/role/note, it can append those too.)
-
-    // Build Veracross URL
-    const vc = new URL(VC_URL);
-    vc.searchParams.set(LEGACY_PARAM, id);
-    vc.searchParams.set(RETURN_PARAM, ret.toString()); // requires VC to support a return param
-
-    location.href = vc.toString();
-  });
+function renderLabel({ id, name, role, note }){
+  // For this simple flow, we only have Legacy ID. Use it as the main line.
+  $('#nm').textContent = name || (id ? `ID: ${id}` : 'Guest');
+  $('#sb').textContent = role ? (note ? `${role} — ${note}` : role) : 'Visitor';
+  $('#ft').textContent = new Date().toLocaleDateString() + ' • The Frisch School';
 }
+
+function printNow(payload){
+  renderLabel(payload);
+  showCard(false);
+  showLabel(true);
+  setTimeout(() => window.print(), 150);
+}
+
+function fromQuery(){
+  const q = new URLSearchParams(location.search);
+  return {
+    id:   (q.get('id')||'').trim(),
+    name: (q.get('name')||'').trim(),   // optional if you ever pass it
+    role: (q.get('role')||'').trim(),   // optional
+    note: (q.get('note')||'').trim()    // optional
+  };
+}
+
+document.getElementById('printBtn').addEventListener('click', () => {
+  const id = $('#legacy').value.trim();
+  if(!id){ alert('Please enter a Legacy ID'); return; }
+  // simplest: just print immediately using ID as the name line
+  printNow({ id });
+});
+
+// Auto-print when opened as ?id=123 or with optional &name=&role=&note=
+(function(){
+  const payload = fromQuery();
+  if (payload.id){
+    printNow(payload);
+  } else {
+    showCard(true);
+  }
+})();
 </script>
 </body>
 </html>
