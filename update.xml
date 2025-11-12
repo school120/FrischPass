@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gupdate xmlns="http://www.google.com/update2/response" protocol="2.0">
   <app appid="ddhmhnfbklcbhkkellcednaillichlhf">
-    <updatecheck codebase="https://school120.github.io/FrischPass/extension.crx" version="2.0.4" />
+    <updatecheck codebase="https://school120.github.io/FrischPass/extension.crx" version="2.1.0" />
   </app>
 </gupdate>
