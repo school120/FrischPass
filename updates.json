@@ -1,0 +1,9 @@
+{
+  "versions": [
+    {
+      "version": "1.0.0",
+      "src": "https://school120.github.io/FrischPass/app-1.0.0.swbn",
+      "channels": ["default"]
+    }
+  ]
+}
